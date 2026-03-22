@@ -1,49 +1,38 @@
-# Multi-stage build for minimal wiki CLI Docker image
-# Optimized for size and security using Debian slim base with statically downloaded binaries
+# Multi-stage build for wiki-client Docker image
 
-# Stage 1: Download binaries
-FROM alpine:3.19 AS binary-downloader
+FROM python:3.12-slim AS builder
 
-RUN apk add --no-cache \
-    curl \
-    tar \
-    gzip \
-    ca-certificates
+RUN apt-get update && apt-get install -y --no-install-recommends git && rm -rf /var/lib/apt/lists/*
 
-WORKDIR /tmp/tools
+RUN pip install uv
 
-# Download htmlq binary
-RUN curl -fsSL https://github.com/mgdm/htmlq/releases/download/v0.4.0/htmlq-x86_64-linux.tar.gz | tar xz
+WORKDIR /build
+COPY pyproject.toml uv.lock README.md ./
 
-# Download and extract glow binary
-RUN curl -fsSL https://github.com/charmbracelet/glow/releases/download/v2.1.1/glow_2.1.1_Linux_x86_64.tar.gz | tar xz && \
-    mv glow_2.1.1_Linux_x86_64/glow . && \
-    rm -rf glow_2.1.1_Linux_x86_64
+ARG PACKAGE_VERSION=1.0.0
+ENV PACKAGE_VERSION=$PACKAGE_VERSION
 
-# Stage 2: Runtime environment - Debian slim for better compatibility and smaller footprint
-FROM debian:12-slim
+RUN uv pip install --system build hatchling uv-dynamic-versioning
 
-# Install runtime dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    curl \
-    pandoc \
-    ca-certificates \
-    && rm -rf /var/lib/apt/lists/*
+COPY wiki_client ./wiki_client
 
-# Copy binaries from downloader stage
-COPY --from=binary-downloader /tmp/tools/htmlq /usr/local/bin/
-COPY --from=binary-downloader /tmp/tools/glow /usr/local/bin/
+RUN git init && \
+    git config user.email "build@example.com" && \
+    git config user.name "Build" && \
+    git add -A && \
+    git commit -m "temp"
 
-RUN chmod +x /usr/local/bin/htmlq /usr/local/bin/glow
+RUN python -m build --wheel --no-isolation .
 
-# Copy wiki script
-COPY wiki /usr/local/bin/
-RUN chmod +x /usr/local/bin/wiki
+FROM python:3.12-slim
 
-# Create non-root user for security best practices
-# Using UID 1001 to avoid potential conflicts with host user IDs
-RUN groupadd -g 1001 wiki && \
-    useradd -m -u 1001 -g wiki wiki
+RUN pip install uv
+
+COPY --from=builder /build/dist/*.whl ./
+RUN uv pip install --system *.whl
+
+RUN groupadd --gid 1000 wiki && \
+    useradd --uid 1000 --gid wiki --shell /bin/bash --create-home wiki
 
 USER wiki
 WORKDIR /home/wiki

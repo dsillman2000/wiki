@@ -61,7 +61,8 @@ wiki "Unix shell"
 
 ```bash
 git clone https://github.com/dsillman2000/wiki-client.git
-pip install ./wiki
+cd wiki-client
+pip install .
 wiki "Unix shell"
 ```
 
@@ -78,19 +79,19 @@ dependencies pre-installed:
 
 ```bash
 # Pull the image
-docker pull ghcr.io/dsillman2000/wiki:latest
+docker pull ghcr.io/dsillman2000/wiki-client:latest
 
 # Run a query
-docker run --rm ghcr.io/dsillman2000/wiki:latest "Unix shell"
+docker run --rm ghcr.io/dsillman2000/wiki-client:latest "Unix shell"
 
 # Extract specific section
-docker run --rm ghcr.io/dsillman2000/wiki:latest -s History "Bash"
+docker run --rm ghcr.io/dsillman2000/wiki-client:latest -s History "Bash"
 
 # List sections
-docker run --rm ghcr.io/dsillman2000/wiki:latest -ls "Python"
+docker run --rm ghcr.io/dsillman2000/wiki-client:latest -ls "Python"
 
 # Save output to file (mount current directory)
-docker run --rm -v "$(pwd)":/home/wiki ghcr.io/dsillman2000/wiki:latest \
+docker run --rm -v "$(pwd)":/home/wiki ghcr.io/dsillman2000/wiki-client:latest \
   "Operating system" -o os.md
 ```
 
@@ -99,7 +100,7 @@ docker run --rm -v "$(pwd)":/home/wiki ghcr.io/dsillman2000/wiki:latest \
 - No local dependency installation required
 - Consistent environment across systems
 - Easy integration into CI/CD pipelines
-- Lightweight multi-stage build (~311MB)
+- Lightweight multi-stage build (~218MB)
 
 ## Usage
 
@@ -184,7 +185,7 @@ make test       # pytest
 Or run directly:
 
 ```bash
-ruff check wiki_cli/ tests/
+ruff check wiki_client/ tests/
 python -m pytest tests/ -v
 ```
 
