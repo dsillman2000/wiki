@@ -4,24 +4,20 @@
 
 When performing Wikipedia research, use the `wiki` CLI first. It fetches clean Markdown, supports section extraction, and integrates directly into shell workflows without browser overhead.
 
-## Installation
+## Requirements
 
-If `wiki` is not available, install it:
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/dsillman2000/wiki/main/install.sh | bash
-```
+- `wiki` must be on PATH (installed via `curl -fsSL https://raw.githubusercontent.com/dsillman2000/wiki/main/install.sh | bash`)
 
 ## Basic Usage
 
 ```bash
-./wiki "article name"           # Fetch full article
-./wiki -s "Section" "article"  # Extract specific section
-./wiki --search "query"        # Search mode
-./wiki -ls "article"           # List all sections
-./wiki --featured              # Today's featured article
-./wiki --random               # Random article
-./wiki --news                 # Current events
+wiki "article name"           # Fetch full article
+wiki -s "Section" "article"  # Extract specific section
+wiki --search "query"        # Search mode
+wiki -ls "article"           # List all sections
+wiki --featured              # Today's featured article
+wiki --random              # Random article
+wiki --news                # Current events
 ```
 
 ## Output Modes
@@ -55,31 +51,31 @@ Wikipedia content is licensed under [CC BY-SA 3.0](https://creativecommons.org/l
 
 ```bash
 # Quick fact lookup
-./wiki "Language (linguistics)"
+wiki "Language (linguistics)"
 
 # Specific section
-./wiki -s History "Unix shell"
+wiki -s History "Unix shell"
 
 # Find related articles
-./wiki --search "functional programming"
+wiki --search "functional programming"
 
 # List article sections before extracting
-./wiki -ls "Bash (shell)"
+wiki -ls "Bash (shell)"
 
 # Save for later reference
-./wiki "Python" -o python.md
+wiki "Python" -o python.md
 
 # Random article for exploration
-./wiki --random
+wiki --random
 
 # Current events
-./wiki --news
+wiki --news
 ```
 
 ## Troubleshooting
 
 - No output: Try `--raw` to see raw Markdown
 - Section not found: Use `-ls` to list available sections
-- Dependencies missing: Run `./wiki --check` to verify curl, htmlq, pandoc are installed
-- Permission denied: Ensure `~/.local/bin` is in `$PATH` and writable
+- `wiki` not found: Run `curl -fsSL https://raw.githubusercontent.com/dsillman2000/wiki/main/install.sh | bash`
+- Dependencies missing: Run `wiki --check` to verify curl, htmlq, pandoc are installed
 - Network error: Verify internet access (required)
