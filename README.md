@@ -57,7 +57,7 @@ wiki "Unix shell"
 ### Install from source
 
 ```bash
-git clone https://github.com/dsillman2000/wiki.git
+git clone https://github.com/dsillman2000/wiki-cli.git
 pip install ./wiki
 wiki "Unix shell"
 ```
@@ -65,7 +65,7 @@ wiki "Unix shell"
 Or use the provided install script:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/dsillman2000/wiki/main/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/dsillman2000/wiki-cli/main/install.sh | sh
 ```
 
 ## Usage

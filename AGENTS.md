@@ -10,14 +10,14 @@
 - **Type:** CLI tool (Python Click application)
 - **Purpose:** Fetch Wikipedia articles and display them in the terminal
 - **Language:** Python (3.10+)
-- **Repository:** https://github.com/dsillman2000/wiki
+- **Repository:** https://github.com/dsillman2000/wiki-cli
 - **Main entry point:** `wiki` command (via `uvx wiki-cli` or installed)
 
 ## Quick Start
 
 ```bash
 # Clone the repo
-git clone https://github.com/dsillman2000/wiki.git
+git clone https://github.com/dsillman2000/wiki-cli.git
 cd wiki
 
 # Install dependencies

@@ -1,7 +1,7 @@
 #!/bin/sh
 set -e
 
-REPO_URL="https://github.com/dsillman2000/wiki.git"
+REPO_URL="https://github.com/dsillman2000/wiki-cli.git"
 INSTALL_DIR="$HOME/.local/share/wiki-cli"
 BIN_DIR="$HOME/.local/bin"
 
