@@ -15,24 +15,31 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install ruff
+        run: pip install ruff
+
+      - name: Run ruff on Python source
+        run: ruff check wiki_cli/ tests/
+
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: "20.x"
           cache: "npm"
 
-      - name: Install dependencies
+      - name: Install Node dependencies
         run: npm ci
 
       - name: Install shellcheck
         run: sudo apt-get update && sudo apt-get install -y shellcheck
 
-      - name: Run shellcheck
-        run: |
-          shellcheck wiki lint.sh
+      - name: Run shellcheck on shell scripts
+        run: shellcheck install.sh uninstall.sh lint.sh
 
       - name: Run prettier check
         run: npx prettier --check "**/*.md"
-
-      - name: Run npm lint
-        run: npm run lint

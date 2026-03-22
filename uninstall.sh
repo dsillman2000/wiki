@@ -19,15 +19,11 @@ confirm() {
     esac
 }
 
-remove_binary() {
-    if [ -L "$BIN_PATH" ]; then
-        rm "$BIN_PATH"
-        return 0
-    elif [ -e "$BIN_PATH" ]; then
-        printf 'error: %s exists but is not a symlink\n' "$BIN_PATH" >&2
-        return 1
+uninstall_package() {
+    if python3 -m pip show wiki-cli >/dev/null 2>&1; then
+        python3 -m pip uninstall --yes wiki-cli
+        printf 'Uninstalled wiki-cli Python package\n'
     fi
-    return 0
 }
 
 remove_install_dir() {
@@ -67,19 +63,19 @@ main() {
         shift
     done
 
-    if [ ! -L "$BIN_PATH" ] && [ ! -e "$BIN_PATH" ]; then
+    if ! command -v wiki >/dev/null 2>&1 && [ ! -e "$BIN_PATH" ]; then
         printf 'wiki is not installed\n'
         exit 0
     fi
 
     if [ $yes_flag -eq 0 ]; then
-        confirm "Remove wiki from $BIN_PATH?" || {
+        confirm "Uninstall wiki-cli?" || {
             printf 'cancelled\n'
             exit 0
         }
     fi
 
-    remove_binary && printf 'Removed %s\n' "$BIN_PATH"
+    uninstall_package
 
     if [ $remove_repo -eq 1 ]; then
         remove_install_dir
