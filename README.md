@@ -1,5 +1,8 @@
 # wiki
 
+[![PyPI Version](https://img.shields.io/pypi/v/wiki-cli)](https://pypi.org/project/wiki-cli/)
+[![Python Versions](https://img.shields.io/pypi/pyversions/wiki-cli)](https://pypi.org/project/wiki-cli/)
+
 A command-line tool to fetch Wikipedia articles and display them in the terminal.
 
 ## Overview
