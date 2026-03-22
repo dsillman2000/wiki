@@ -13,12 +13,10 @@ A command-line tool to fetch Wikipedia articles and display them in the terminal
 - **Fetch articles** — Query Wikipedia by article title or search query
 - **Search mode** — Show a ranked list of search results
 - **Raw output** — Print plain text instead of Rich-formatted output
-- **Dependency check** — Verify that all required Python packages are installed
 
 ## Requirements
 
 - Python 3.10 or newer
-- pip
 
 The following Python packages are installed automatically:
 
@@ -30,19 +28,44 @@ The following Python packages are installed automatically:
 
 ## Installation
 
-```bash
-# Clone the repository and install
-git clone https://github.com/dsillman2000/wiki.git ~/.local/share/wiki-cli
-pip install --user -e ~/.local/share/wiki-cli
+### Recommended: `uvx` (no permanent install required)
 
-# Or use the provided install script
-curl -fsSL https://raw.githubusercontent.com/dsillman2000/wiki/main/install.sh | sh
+The easiest way to run `wiki` is with
+[`uvx`](https://docs.astral.sh/uv/guides/tools/) from the
+[uv](https://docs.astral.sh/uv/) toolkit. This downloads and runs the tool in
+an isolated environment without permanently installing it:
+
+```bash
+uvx --from wiki-cli wiki "Unix shell"
 ```
 
-Make sure `~/.local/bin` is on your `$PATH`:
+Install `uv` (if you haven't already):
 
 ```bash
-export PATH="$HOME/.local/bin:$PATH"
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+### `pip install` (permanent install)
+
+Installing via pip places the `wiki` command on your `$PATH` directly:
+
+```bash
+pip install wiki-cli
+wiki "Unix shell"
+```
+
+### Install from source
+
+```bash
+git clone https://github.com/dsillman2000/wiki.git
+pip install ./wiki
+wiki "Unix shell"
+```
+
+Or use the provided install script:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/dsillman2000/wiki/main/install.sh | sh
 ```
 
 ## Usage
@@ -64,11 +87,10 @@ wiki "Unix shell" --raw
 wiki --search "shell programming"
 ```
 
-### Version & Dependency Check
+### Version
 
 ```bash
 wiki --version
-wiki --check
 ```
 
 ## Examples

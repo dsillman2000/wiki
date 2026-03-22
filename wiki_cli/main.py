@@ -2,9 +2,6 @@
 
 from __future__ import annotations
 
-import importlib
-import sys
-
 import click
 import httpx
 
@@ -24,18 +21,11 @@ from wiki_cli import __version__, api, render
     is_flag=True,
     help="Print plain text instead of Rich-formatted output.",
 )
-@click.option(
-    "--check",
-    "check_mode",
-    is_flag=True,
-    help="Check that required Python dependencies are importable.",
-)
 @click.version_option(version=__version__, prog_name="wiki")
-def cli(query: tuple[str, ...], search_mode: bool, raw: bool, check_mode: bool) -> None:
+def cli(query: tuple[str, ...], search_mode: bool, raw: bool) -> None:
     """Fetch a Wikipedia article and display it in the terminal.
 
-    QUERY is the article title or search terms.  When QUERY looks like a
-    URL (starts with http:// or https://) the page is fetched directly.
+    QUERY is the article title or search terms.
 
     Examples:
 
@@ -44,12 +34,8 @@ def cli(query: tuple[str, ...], search_mode: bool, raw: bool, check_mode: bool) 
       wiki --search "shell programming"
       wiki --raw "Bash (Unix shell)"
     """
-    if check_mode:
-        _check_dependencies()
-        return
-
     if not query:
-        raise click.UsageError("QUERY is required unless --check is given.")
+        raise click.UsageError("QUERY is required.")
 
     query_str = " ".join(query)
 
@@ -70,25 +56,3 @@ def cli(query: tuple[str, ...], search_mode: bool, raw: bool, check_mode: bool) 
         raise click.ClickException(
             f"Network error fetching article: {exc}"
         ) from exc
-
-
-# ---------------------------------------------------------------------------
-# Dependency check
-# ---------------------------------------------------------------------------
-
-_REQUIRED_MODULES = ["click", "httpx", "rich"]
-
-
-def _check_dependencies() -> None:
-    """Print the status of each required Python package."""
-    all_ok = True
-    for module in _REQUIRED_MODULES:
-        try:
-            importlib.import_module(module)
-            click.echo(f"{module}: OK")
-        except ImportError:
-            click.echo(f"{module}: missing")
-            all_ok = False
-
-    if not all_ok:
-        sys.exit(1)
