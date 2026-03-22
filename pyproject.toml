@@ -1,13 +1,14 @@
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling", "uv-dynamic-versioning"]
 build-backend = "hatchling.build"
 
 [project]
 name = "wiki-client"
-version = "1.0.0"
+dynamic = ["version"]
 description = "A CLI tool to fetch Wikipedia articles"
+authors = [{ name = "David Sillman", email = "dsillman2000@gmail.com" }]
 readme = "README.md"
-license = { text = "MIT" }
+license = "MIT"
 requires-python = ">=3.10"
 dependencies = [
     "beautifulsoup4>=4.12",
@@ -15,9 +16,36 @@ dependencies = [
     "httpx>=0.25",
     "rich>=13.0",
 ]
+keywords = [
+    "wikipedia",
+    "wiki",
+    "cli",
+    "terminal",
+    "article",
+    "fetch",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Text Processing :: Indexing",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+]
+
+[project.urls]
+Repository = "https://github.com/dsillman2000/wiki-client"
 
 [project.scripts]
 wiki = "wiki_client.main:cli"
+
+[tool.hatch.version]
+source = "uv-dynamic-versioning"
+
+[tool.hatch.build.targets.wheel]
+packages = ["wiki_client"]
 
 [dependency-groups]
 dev = [
