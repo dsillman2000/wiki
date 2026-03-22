@@ -8,7 +8,7 @@ from urllib.parse import unquote, urlparse
 import httpx
 from bs4 import BeautifulSoup, Tag
 
-USER_AGENT = "wiki-cli/1.0 (+https://github.com/dsillman2000/wiki-cli)"
+USER_AGENT = "wiki-client/1.0 (+https://github.com/dsillman2000/wiki-cli)"
 
 _SUMMARY_URL = "https://en.wikipedia.org/api/rest_v1/page/summary/{title}"
 _HTML_URL = "https://en.wikipedia.org/api/rest_v1/page/html/{title}"

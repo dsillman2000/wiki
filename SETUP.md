@@ -147,7 +147,7 @@ uv sync --refresh
 Check that you're in the correct directory:
 
 ```bash
-cd /path/to/wiki-cli
+cd /path/to/wiki-client
 python -m pytest
 ```
 

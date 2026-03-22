@@ -10,21 +10,29 @@ jobs:
   get-version:
     runs-on: ubuntu-latest
     outputs:
-      version: ${{ steps.version.outputs.version }}
+      version: ${{ steps.gitversion.outputs.semVer }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Get version from git tag
-        id: version
-        run: |
-          git fetch --tags
-          TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
-          VERSION=${TAG#v}
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "Tag found: $TAG, Version: $VERSION"
+      - name: Setup .NET (for GitVersion)
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Install GitVersion
+        uses: gittools/actions/gitversion/setup@v0.11.0
+        with:
+          versionSpec: "5.x"
+
+      - name: Run GitVersion
+        id: gitversion
+        uses: gittools/actions/gitversion/execute@v0.11.0
+
+      - name: Output version
+        run: 'echo "GitVersion returned: ${{ steps.gitversion.outputs.semVer }}"'
 
   tests:
     runs-on: ubuntu-latest
@@ -120,7 +128,7 @@ jobs:
       id-token: write
     environment:
       name: pypi
-      url: https://pypi.org/p/wiki-cli
+      url: https://pypi.org/p/wiki-client
 
     steps:
       - name: Download build artifacts

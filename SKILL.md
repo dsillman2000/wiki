@@ -30,7 +30,7 @@ wiki --version                      # Show version
 ## Requirements
 
 - Python 3.10+
-- Install via: `pip install wiki-cli` or `uvx wiki-cli`
+- Install via: `pip install wiki-client` or `uvx wiki-client`
 
 ## Examples
 

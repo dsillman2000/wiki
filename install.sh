@@ -1,8 +1,8 @@
 #!/bin/sh
 set -e
 
-REPO_URL="https://github.com/dsillman2000/wiki-cli.git"
-INSTALL_DIR="$HOME/.local/share/wiki-cli"
+REPO_URL="https://github.com/dsillman2000/wiki-client.git"
+INSTALL_DIR="$HOME/.local/share/wiki-client"
 BIN_DIR="$HOME/.local/bin"
 
 info() {
@@ -53,10 +53,10 @@ ensure_local_bin() {
 
 install_repo() {
     if [ -d "$INSTALL_DIR/.git" ]; then
-        info "Updating wiki-cli in $INSTALL_DIR"
+        info "Updating wiki-client in $INSTALL_DIR"
         git -C "$INSTALL_DIR" pull --quiet origin main
     else
-        info "Cloning wiki-cli to $INSTALL_DIR"
+        info "Cloning wiki-client to $INSTALL_DIR"
         if [ -e "$INSTALL_DIR" ]; then
             die "path exists but is not a git repository: $INSTALL_DIR"
         fi
@@ -65,7 +65,7 @@ install_repo() {
 }
 
 install_package() {
-    info "Installing wiki-cli Python package..."
+    info "Installing wiki-client Python package..."
     python3 -m pip install --quiet --user -e "$INSTALL_DIR"
     info "Installation complete."
 }

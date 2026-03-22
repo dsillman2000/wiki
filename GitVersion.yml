@@ -1,0 +1,4 @@
+mode: MainLine
+major-version-bump-message: "^(major|breaking)"
+minor-version-bump-message: "^(minor|feat)"
+patch-version-bump-message: "^(patch|fix|docs|style|refactor|perf|test|chore|ci)"

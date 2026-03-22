@@ -1,4 +1,4 @@
-"""Click CLI entry point for wiki-cli."""
+"""Click CLI entry point for wiki-client."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ import contextlib
 import click
 import httpx
 
-from wiki_cli import __version__, api, render
+from wiki_client import __version__, api, render
 
 
 @click.command(context_settings={"help_option_names": ["-h", "--help"]})

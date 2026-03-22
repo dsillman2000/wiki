@@ -1,4 +1,4 @@
-"""Rich-based terminal rendering for wiki-cli."""
+"""Rich-based terminal rendering for wiki-client."""
 
 from __future__ import annotations
 

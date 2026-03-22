@@ -1,4 +1,4 @@
-"""Unit tests for wiki_cli.render."""
+"""Unit tests for wiki_client.render."""
 
 from __future__ import annotations
 
@@ -6,7 +6,7 @@ import io
 
 from rich.console import Console
 
-from wiki_cli import render
+from wiki_client import render
 
 
 def _capture(func, *args, **kwargs) -> str:

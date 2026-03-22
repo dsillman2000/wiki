@@ -22,7 +22,7 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Install wiki-cli Python package
+      - name: Install wiki-client Python package
         run: |
           pip install -e .
 
@@ -31,8 +31,8 @@ jobs:
           which wiki
           wiki --version
 
-      - name: Uninstall wiki-cli
-        run: pip uninstall --yes wiki-cli
+      - name: Uninstall wiki-client
+        run: pip uninstall --yes wiki-client
 
       - name: Verify removal
         run: |

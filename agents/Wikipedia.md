@@ -6,7 +6,7 @@ When performing Wikipedia research, use the `wiki` CLI first. It fetches clean c
 
 ## Requirements
 
-- `wiki` must be on PATH (installed via `pip install wiki-cli` or `uvx wiki-cli`)
+- `wiki` must be on PATH (installed via `pip install wiki-client` or `uvx wiki-client`)
 
 ## Basic Usage
 
@@ -75,6 +75,6 @@ wiki "https://en.wikipedia.org/wiki/Python_(programming_language)"
 
 - No output: Try `--raw` to see raw Markdown
 - Section not found: Use `-ls` to list available sections
-- `wiki` not found: Run `pip install wiki-cli` or `uvx wiki-cli`
+- `wiki` not found: Run `pip install wiki-client` or `uvx wiki-client`
 - Network error: Verify internet access (required)
 - Wrong article: Try `--search` first to find the correct article title

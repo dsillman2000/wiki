@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "wiki-cli"
+name = "wiki-client"
 version = "1.0.0"
 description = "A CLI tool to fetch Wikipedia articles"
 readme = "README.md"
@@ -17,7 +17,7 @@ dependencies = [
 ]
 
 [project.scripts]
-wiki = "wiki_cli.main:cli"
+wiki = "wiki_client.main:cli"
 
 [dependency-groups]
 dev = [

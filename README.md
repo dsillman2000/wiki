@@ -1,7 +1,7 @@
-# wiki-cli
+# wiki-client
 
-[![PyPI Version](https://img.shields.io/pypi/v/wiki-cli)](https://pypi.org/project/wiki-cli/)
-[![Python Versions](https://img.shields.io/pypi/pyversions/wiki-cli)](https://pypi.org/project/wiki-cli/)
+[![PyPI Version](https://img.shields.io/pypi/v/wiki-client)](https://pypi.org/project/wiki-client/)
+[![Python Versions](https://img.shields.io/pypi/pyversions/wiki-client)](https://pypi.org/project/wiki-client/)
 
 A command-line tool to fetch Wikipedia articles and display them in the terminal.
 
@@ -39,7 +39,7 @@ The easiest way to run `wiki` is with
 an isolated environment without permanently installing it:
 
 ```bash
-uvx --from wiki-cli wiki "Unix shell"
+uvx --from wiki-client wiki "Unix shell"
 ```
 
 Install `uv` (if you haven't already):
@@ -53,14 +53,14 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 Installing via pip places the `wiki` command on your `$PATH` directly:
 
 ```bash
-pip install wiki-cli
+pip install wiki-client
 wiki "Unix shell"
 ```
 
 ### Install from source
 
 ```bash
-git clone https://github.com/dsillman2000/wiki-cli.git
+git clone https://github.com/dsillman2000/wiki-client.git
 pip install ./wiki
 wiki "Unix shell"
 ```
@@ -68,7 +68,7 @@ wiki "Unix shell"
 Or use the provided install script:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/dsillman2000/wiki-cli/main/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/dsillman2000/wiki-client/main/install.sh | sh
 ```
 
 ## Usage

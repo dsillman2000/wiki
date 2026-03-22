@@ -3,7 +3,7 @@ set -e
 
 BIN_DIR="$HOME/.local/bin"
 BIN_PATH="$BIN_DIR/wiki"
-INSTALL_DIR="$HOME/.local/share/wiki-cli"
+INSTALL_DIR="$HOME/.local/share/wiki-client"
 
 confirm() {
     printf '%s ' "$*" >&2
@@ -20,9 +20,9 @@ confirm() {
 }
 
 uninstall_package() {
-    if python3 -m pip show wiki-cli >/dev/null 2>&1; then
-        python3 -m pip uninstall --yes wiki-cli
-        printf 'Uninstalled wiki-cli Python package\n'
+    if python3 -m pip show wiki-client >/dev/null 2>&1; then
+        python3 -m pip uninstall --yes wiki-client
+        printf 'Uninstalled wiki-client Python package\n'
     fi
 }
 
@@ -69,7 +69,7 @@ main() {
     fi
 
     if [ $yes_flag -eq 0 ]; then
-        confirm "Uninstall wiki-cli?" || {
+        confirm "Uninstall wiki-client?" || {
             printf 'cancelled\n'
             exit 0
         }

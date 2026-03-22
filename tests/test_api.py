@@ -1,4 +1,4 @@
-"""Unit tests for wiki_cli.api."""
+"""Unit tests for wiki_client.api."""
 
 from __future__ import annotations
 
@@ -6,7 +6,7 @@ import httpx
 import pytest
 from pytest_httpx import HTTPXMock
 
-from wiki_cli import api
+from wiki_client import api
 
 SAMPLE_SUMMARY = {
     "title": "Unix shell",
