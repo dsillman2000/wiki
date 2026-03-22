@@ -1,49 +1,71 @@
 # wiki
 
-A command-line tool to fetch Wikipedia articles and convert them to Markdown format.
+A command-line tool to fetch Wikipedia articles and display them in the terminal.
 
 ## Overview
 
-`wiki` is a lightweight bash script that retrieves Wikipedia articles and converts them to clean, readable Markdown. It supports section extraction, search functionality, and pretty-printing in the terminal.
+`wiki` is a Python CLI that retrieves Wikipedia articles via the
+[Wikipedia REST API](https://en.wikipedia.org/api/rest_v1/) and renders them with
+[Rich](https://github.com/Textualize/rich) for a beautiful terminal experience.
 
 ## Features
 
-- **Fetch articles** - Query Wikipedia by article name or direct URL
-- **Section extraction** - Extract specific sections using fuzzy title matching
-- **Table of contents** - List all sections in an article
-- **Search mode** - Show search results instead of auto-selecting
-- **Special modes** - Fetch featured articles, random articles, or current news topics
-- **Format control** - Output raw Markdown, pretty-print to terminal, or save to file
-- **Pretty printing** - Automatically uses available renderers (glow, mdcat, bat, less)
+- **Fetch articles** — Query Wikipedia by article title or search query
+- **Search mode** — Show a ranked list of search results
+- **Raw output** — Print plain text instead of Rich-formatted output
 
 ## Requirements
 
-### Required
+- Python 3.10 or newer
 
-- `curl` - For fetching web content
-- `htmlq` - For HTML parsing
-- `pandoc` - For HTML to Markdown conversion
+The following Python packages are installed automatically:
 
-### Optional (for pretty-printing)
+| Package                                     | Purpose                            |
+| ------------------------------------------- | ---------------------------------- |
+| [click](https://click.palletsprojects.com/) | CLI argument parsing               |
+| [httpx](https://www.python-httpx.org/)      | HTTP requests to the Wikipedia API |
+| [rich](https://rich.readthedocs.io/)        | Terminal formatting and rendering  |
 
-- `glow` - Markdown renderer (preferred)
-- `mdcat` - Markdown renderer with syntax highlighting
-- `bat` - Code syntax highlighter
-- `less` - Pager for large content
+## Installation
 
-Install all dependencies:
+### Recommended: `uvx` (no permanent install required)
+
+The easiest way to run `wiki` is with
+[`uvx`](https://docs.astral.sh/uv/guides/tools/) from the
+[uv](https://docs.astral.sh/uv/) toolkit. This downloads and runs the tool in
+an isolated environment without permanently installing it:
 
 ```bash
-# Ubuntu/Debian
-sudo apt-get install curl pandoc
+uvx --from wiki-cli wiki "Unix shell"
+```
 
-# For htmlq, grab a release from https://github.com/mgdm/htmlq/releases
-wget https://github.com/mgdm/htmlq/releases/download/0.4.0/htmlq-0.4.0-x86_64-unknown-linux-gnu.zip
-unzip htmlq-0.4.0-x86_64-unknown-linux-gnu.zip
-sudo mv htmlq /usr/local/bin/
+Install `uv` (if you haven't already):
 
-# Optional renderers
-sudo apt-get install glow mdcat bat
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+### `pip install` (permanent install)
+
+Installing via pip places the `wiki` command on your `$PATH` directly:
+
+```bash
+pip install wiki-cli
+wiki "Unix shell"
+```
+
+### Install from source
+
+```bash
+git clone https://github.com/dsillman2000/wiki.git
+pip install ./wiki
+wiki "Unix shell"
+```
+
+Or use the provided install script:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/dsillman2000/wiki/main/install.sh | sh
 ```
 
 ## Usage
@@ -54,174 +76,110 @@ sudo apt-get install glow mdcat bat
 # Fetch an article
 wiki "Unix shell"
 
-# Fetch from URL
-wiki "https://en.wikipedia.org/wiki/Bash_(Unix_shell)"
-
-# Show Markdown without pretty-printing
+# Print plain text (no Rich formatting)
 wiki "Unix shell" --raw
 ```
 
-### Section Extraction
+### Search Mode
+
+```bash
+# Show search results instead of auto-fetching
+wiki --search "shell programming"
+```
+
+### Section Listing & Filtering
 
 ```bash
 # List all sections in an article
-wiki -ls "Unix shell"
+wiki --list-sections "Unix shell"
+wiki --ls "Unix shell"          # shorthand
 
-# Extract specific sections (repeatable, uses fuzzy matching)
+# Extract a specific section (fuzzy match)
 wiki -s History "Unix shell"
-wiki -s "Bourne shell" -s "C shell" "Unix shell"
+wiki -s "early" "Unix shell"    # matches "Early shells", "Early history", etc.
 
-# Fuzzy matching works on partial titles
-wiki -s "hist" "Unix shell"  # matches "History"
+# Multiple sections
+wiki -s History -s "See also" "Unix shell"
 ```
 
-### Search & Special Modes
+### Version
 
 ```bash
-# Show search results
-wiki --search "shell programming"
-
-# Fetch today's featured article
-wiki --featured
-
-# Fetch a random article
-wiki --random
-
-# Show topics in the news
-wiki --news
-```
-
-### Output Options
-
-```bash
-# Save to file
-wiki "Bash" -o bash.md
-
-# Save specific sections to file
-wiki "Unix shell" -s History -o history.md
-
-# Combine options
-wiki "Python" --raw -o python.md
+wiki --version
 ```
 
 ## Examples
 
 ```bash
-# Get the History section of Bash
-wiki -s History "Bash"
-
-# List sections of Operating systems article
-wiki --list-sections "Operating system"
-
-# Fetch featured article and save it
-wiki --featured -o today.md
+# Get the Unix shell article
+wiki "Unix shell"
 
 # Search for shell-related articles
 wiki --search "shell interpreters"
 
-# Get History and Types sections from Operating systems
-wiki "Operating system" -s History -s Types
+# Print raw text
+wiki "Bash (Unix shell)" --raw
+
+# List all sections
+wiki --ls "Unix shell"
+
+# Read the History section
+wiki -s History "Unix shell"
 ```
-
-## How It Works
-
-1. **Query parsing** - Accepts search queries or Wikipedia URLs
-2. **Fetching** - Uses curl to retrieve the page (with proper User-Agent)
-3. **Extraction** - Uses htmlq to extract article body from HTML
-4. **Conversion** - Uses pandoc to convert HTML to GFM Markdown
-5. **Rendering** - Pretty-prints using available renderers or outputs raw Markdown
-
-### Section Matching
-
-Section titles are matched using fuzzy substring matching on normalized (lowercase, alphanumeric-only) headings. Parent sections are automatically included when extracting nested subsections.
 
 ## Development
 
 ### Quick Start
 
-Use Make to manage development tasks:
-
 ```bash
-# View all available tasks
-make help
+# Install in editable mode with dev dependencies
+pip install -e .
+pip install pytest pytest-httpx ruff
 
-# Install development dependencies
-make install-dev
-
-# Run linting checks
-make lint
-
-# Format code
-make format
-```
-
-### Installation
-
-Install runtime dependencies (requires sudo):
-
-```bash
-make install
-```
-
-Install development dependencies via npm:
-
-```bash
+# Or use Make
 make install-dev
 ```
 
-This will:
-
-- Install npm dependencies (prettier, husky, lint-staged)
-- Configure git pre-commit hooks via husky
-- Enable automatic linting on every commit
-
-### Linting & Formatting
-
-The project uses:
-
-- **shellcheck** - Bash script validation
-- **prettier** - Markdown formatting
-- **husky** - Git hooks for automated linting
-- **lint-staged** - Run linters only on changed files
-
-Available make targets:
+### Linting & Testing
 
 ```bash
-make lint              # Run all linting checks
-make lint-shell        # Run shellcheck only
-make lint-markdown     # Check markdown formatting
-make format            # Format markdown files
-make format-check      # Check if formatting is needed
-make check-deps        # Verify runtime dependencies
+make lint       # ruff + shellcheck + prettier
+make lint-python  # ruff only
+make test       # pytest
 ```
 
-Or use npm scripts directly:
+Or run directly:
 
 ```bash
-npm run lint           # Run all linting
-npm run lint:shellcheck
-npm run lint:markdown
-npm run format         # Format code
-npm run format:check   # Check formatting
-npm run pre-commit     # Manual pre-commit hook
+ruff check wiki_cli/ tests/
+python -m pytest tests/ -v
 ```
 
-### Git Hooks
-
-When you run `make install-dev`, husky automatically configures a pre-commit hook that:
-
-1. Lints bash scripts with shellcheck
-2. Formats markdown with prettier (check mode)
-
-Linting will run automatically on `git commit`. To skip it:
+### Available Make Targets
 
 ```bash
-git commit --no-verify
+make help           # Show all targets
+make install        # pip install -e .
+make install-dev    # Install dev dependencies
+make lint           # Run all linting checks
+make lint-python    # ruff
+make lint-shell     # shellcheck
+make lint-markdown  # prettier
+make test           # pytest
+make format         # prettier --write README.md
+make clean          # Remove build artifacts
 ```
+
+## How It Works
+
+1. **Query resolution** — Tries a direct Wikipedia REST API title lookup; falls
+   back to a full-text search if the title returns 404.
+2. **Rendering** — Uses Rich to render the article extract as formatted Markdown
+   in the terminal. Pass `--raw` for plain-text output.
 
 ## Version
 
-0.1.0
+1.0.0
 
 ## License
 

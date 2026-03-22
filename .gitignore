@@ -22,3 +22,15 @@ package-lock.json
 # Build outputs (if any)
 dist/
 build/
+*.egg-info/
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.pytest_cache/
+.ruff_cache/
+*.pyd
+.venv/
+venv/
+uv.lock

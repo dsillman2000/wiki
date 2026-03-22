@@ -4,7 +4,6 @@ set -e
 REPO_URL="https://github.com/dsillman2000/wiki.git"
 INSTALL_DIR="$HOME/.local/share/wiki-cli"
 BIN_DIR="$HOME/.local/bin"
-BIN_PATH="$BIN_DIR/wiki"
 
 info() {
     printf '%s\n' "$*"
@@ -23,9 +22,25 @@ is_command() {
     command -v "$1" >/dev/null 2>&1
 }
 
-check_curl() {
-    if ! is_command curl; then
-        die "curl is required but not installed"
+check_python() {
+    if ! is_command python3; then
+        die "python3 is required but not installed"
+    fi
+    py_version_ok="$(python3 -c 'import sys; print(sys.version_info[:2] >= (3, 10))')"
+    if [ "$py_version_ok" != "True" ]; then
+        die "Python 3.10 or newer is required (found $(python3 --version))"
+    fi
+}
+
+check_pip() {
+    if ! python3 -m pip --version >/dev/null 2>&1; then
+        die "pip is required but not available (try: python3 -m ensurepip)"
+    fi
+}
+
+check_git() {
+    if ! is_command git; then
+        die "git is required but not installed"
     fi
 }
 
@@ -49,21 +64,10 @@ install_repo() {
     fi
 }
 
-create_symlink() {
-    if [ -L "$BIN_PATH" ]; then
-        existing_target="$(readlink "$BIN_PATH")"
-        if [ "$existing_target" = "$INSTALL_DIR/wiki" ]; then
-            info "Symlink already exists: $BIN_PATH -> $INSTALL_DIR/wiki"
-            return 0
-        fi
-        info "Updating symlink: $BIN_PATH -> $INSTALL_DIR/wiki"
-        rm "$BIN_PATH"
-    elif [ -e "$BIN_PATH" ]; then
-        info "Backing up existing file: $BIN_PATH -> $BIN_PATH.bak"
-        mv "$BIN_PATH" "$BIN_PATH.bak"
-    fi
-    info "Creating symlink: $BIN_PATH -> $INSTALL_DIR/wiki"
-    ln -s "$INSTALL_DIR/wiki" "$BIN_PATH"
+install_package() {
+    info "Installing wiki-cli Python package..."
+    python3 -m pip install --quiet --user -e "$INSTALL_DIR"
+    info "Installation complete."
 }
 
 check_path() {
@@ -77,20 +81,22 @@ check_path() {
 
 verify_install() {
     info "Verifying installation..."
-    if ! "$BIN_PATH" --version >/dev/null 2>&1; then
-        die "installation verification failed"
+    if ! command -v wiki >/dev/null 2>&1; then
+        die "installation verification failed: 'wiki' not found in PATH"
     fi
     info "Installation successful!"
     info ""
     info "wiki version:"
-    "$BIN_PATH" --version || true
+    wiki --version || true
 }
 
 main() {
-    check_curl
+    check_python
+    check_pip
+    check_git
     ensure_local_bin
     install_repo
-    create_symlink
+    install_package
 
     if check_path; then
         info "$BIN_DIR is already in your PATH"

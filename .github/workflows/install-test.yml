@@ -6,6 +6,9 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: read
+
 jobs:
   install-test:
     runs-on: ubuntu-latest
@@ -14,47 +17,45 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Run install script
-        run: |
-          chmod +x install.sh
-          ./install.sh
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
 
-      - name: Install runtime dependencies
+      - name: Install wiki-cli Python package
         run: |
-          sudo apt-get update
-          sudo apt-get install -y curl pandoc unzip
-
-      - name: Install htmlq
-        run: |
-          curl -fsSL https://github.com/mgdm/htmlq/releases/download/v0.4.0/htmlq-x86_64-linux.tar.gz -o /tmp/htmlq.tar.gz
-          sudo tar -xzf /tmp/htmlq.tar.gz -C /usr/local/bin/
-          chmod +x /usr/local/bin/htmlq
+          pip install -e .
 
       - name: Verify wiki is in PATH
         run: |
-          export PATH="$HOME/.local/bin:$PATH"
           which wiki
           wiki --version
 
-      - name: Run wiki --check
-        run: |
-          export PATH="$HOME/.local/bin:$PATH"
-          wiki --check
-
-      - name: Run uninstall script
-        run: |
-          chmod +x uninstall.sh
-          ./uninstall.sh --yes
+      - name: Uninstall wiki-cli
+        run: pip uninstall --yes wiki-cli
 
       - name: Verify removal
         run: |
-          export PATH="$HOME/.local/bin:$PATH"
           if command -v wiki >/dev/null 2>&1; then
             echo "wiki still found in PATH after uninstall"
             exit 1
           fi
-          if [ -L "$HOME/.local/bin/wiki" ]; then
-            echo "wiki symlink still exists after uninstall"
-            exit 1
-          fi
           echo "Uninstall verified"
+
+  pytest:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -e . pytest pytest-httpx
+
+      - name: Run tests
+        run: python -m pytest tests/ -v
