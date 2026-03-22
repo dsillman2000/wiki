@@ -1,0 +1,49 @@
+name: Install Test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  install-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run install script
+        run: |
+          chmod +x install.sh
+          ./install.sh
+
+      - name: Verify wiki is in PATH
+        run: |
+          export PATH="$HOME/.local/bin:$PATH"
+          which wiki
+          wiki --version
+
+      - name: Run wiki --check
+        run: |
+          export PATH="$HOME/.local/bin:$PATH"
+          wiki --check
+
+      - name: Run uninstall script
+        run: |
+          chmod +x uninstall.sh
+          ./uninstall.sh --yes
+
+      - name: Verify removal
+        run: |
+          export PATH="$HOME/.local/bin:$PATH"
+          if command -v wiki >/dev/null 2>&1; then
+            echo "wiki still found in PATH after uninstall"
+            exit 1
+          fi
+          if [ -L "$HOME/.local/bin/wiki" ]; then
+            echo "wiki symlink still exists after uninstall"
+            exit 1
+          fi
+          echo "Uninstall verified"
