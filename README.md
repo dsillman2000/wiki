@@ -52,7 +52,7 @@ A Docker image is available on GitHub Container Registry (GHCR) with all
 dependencies pre-installed:
 
 ```bash
-# Pull the image
+# Pull the image (automatically selects your architecture)
 docker pull ghcr.io/dsillman2000/wiki:latest
 
 # Run a query
@@ -74,7 +74,21 @@ docker run --rm -v "$(pwd)":/home/wiki ghcr.io/dsillman2000/wiki:latest \
 - No local dependency installation required
 - Consistent environment across systems
 - Easy integration into CI/CD pipelines
-- Lightweight multi-stage build (~311MB)
+- Lightweight multi-stage build with UPX-compressed binaries
+- Multi-arch support (amd64, arm64) built-in
+
+**Image Tags:**
+
+| Tag      | Description           |
+| -------- | --------------------- |
+| `latest` | Latest stable release |
+| `v1.2.3` | Specific version      |
+| `v1.2`   | Major.minor version   |
+| `<sha>`  | Git commit SHA        |
+
+**Architecture:**
+
+The image is built for both `linux/amd64` and `linux/arm64` automatically. Docker will pull the appropriate image for your platform.
 
 ## Usage
 

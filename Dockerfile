@@ -1,48 +1,64 @@
 # Multi-stage build for minimal wiki CLI Docker image
-# Optimized for size and security using Debian slim base with statically downloaded binaries
+# Optimized for size and security using distroless base with compressed binaries
 
-# Stage 1: Download binaries
+ARG TARGETARCH
+
+# Stage 1: Download and compress binaries
 FROM alpine:3.19 AS binary-downloader
 
 RUN apk add --no-cache \
     curl \
     tar \
     gzip \
-    ca-certificates
+    ca-certificates \
+    upx
 
 WORKDIR /tmp/tools
 
-# Download htmlq binary
-RUN curl -fsSL https://github.com/mgdm/htmlq/releases/download/v0.4.0/htmlq-x86_64-linux.tar.gz | tar xz
+# Download htmlq binary (supports amd64 and arm64)
+RUN case "${TARGETARCH}" in \
+        arm64) ARCH="aarch64" ;; \
+        *) ARCH="x86_64" ;; \
+    esac && \
+    curl -fsSL "https://github.com/mgdm/htmlq/releases/download/v0.4.0/htmlq-${ARCH}-linux.tar.gz" | tar xz
 
-# Download and extract glow binary
-RUN curl -fsSL https://github.com/charmbracelet/glow/releases/download/v2.1.1/glow_2.1.1_Linux_x86_64.tar.gz | tar xz && \
-    mv glow_2.1.1_Linux_x86_64/glow . && \
-    rm -rf glow_2.1.1_Linux_x86_64
+# Download and compress glow binary
+RUN case "${TARGETARCH}" in \
+        arm64) ARCH="arm64" ;; \
+        *) ARCH="x86_64" ;; \
+    esac && \
+    curl -fsSL "https://github.com/charmbracelet/glow/releases/download/v2.1.1/glow_2.1.1_Linux_${ARCH}.tar.gz" | tar xz && \
+    mv glow_2.1.1_Linux_${ARCH}/glow . && \
+    rm -rf glow_2.1.1_Linux_${ARCH}
 
-# Stage 2: Runtime environment - Debian slim for better compatibility and smaller footprint
-FROM debian:12-slim
+# Download pandoc binary (smaller than apt package)
+RUN case "${TARGETARCH}" in \
+        arm64) ARCH="arm64" ;; \
+        *) ARCH="amd64" ;; \
+    esac && \
+    curl -fsSL "https://github.com/jgm/pandoc/releases/download/3.1.13/pandoc-3.1.13-linux-${ARCH}.tar.gz" | tar xz && \
+    mv pandoc-3.1.13/bin/pandoc . && \
+    rm -rf pandoc-3.1.13
 
-# Install runtime dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    curl \
-    pandoc \
-    ca-certificates \
-    && rm -rf /var/lib/apt/lists/*
+# Compress binaries with UPX
+RUN upx --best /tmp/tools/htmlq /tmp/tools/glow /tmp/tools/pandoc
 
-# Copy binaries from downloader stage
+# Stage 2: Runtime environment - Distroless base for minimal size
+FROM gcr.io/distroless/base-debian12
+
 COPY --from=binary-downloader /tmp/tools/htmlq /usr/local/bin/
 COPY --from=binary-downloader /tmp/tools/glow /usr/local/bin/
+COPY --from=binary-downloader /tmp/tools/pandoc /usr/local/bin/
 
-RUN chmod +x /usr/local/bin/htmlq /usr/local/bin/glow
+RUN chmod +x /usr/local/bin/htmlq /usr/local/bin/glow /usr/local/bin/pandoc
 
 # Copy wiki script
 COPY wiki /usr/local/bin/
 RUN chmod +x /usr/local/bin/wiki
 
 # Create non-root user for security best practices
-RUN groupadd -g 1000 wiki && \
-    useradd -m -u 1000 -g wiki wiki
+RUN addgroup -g 1001 wiki && \
+    adduser -D -u 1001 -G wiki wiki
 
 USER wiki
 WORKDIR /home/wiki
