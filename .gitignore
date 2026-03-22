@@ -1,0 +1,24 @@
+# Temporary files
+*.tmp
+*.temp
+/tmp/
+
+# Editor configuration
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Node modules (if using npm for prettier, shellcheck linting, etc.)
+node_modules/
+package-lock.json
+
+# Test artifacts
+*.out
+*.log
+
+# Build outputs (if any)
+dist/
+build/

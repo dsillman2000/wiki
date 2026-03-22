@@ -1,0 +1,6 @@
+# ShellCheck configuration
+# See: https://www.shellcheck.net/wiki/Directive
+
+# We allow some exceptions for this project:
+# - SC1091: Not following sourced files (we don't have any)
+# - SC2086: Double quote to prevent globbing (acceptable in some contexts)
