@@ -19,6 +19,17 @@ jobs:
           chmod +x install.sh
           ./install.sh
 
+      - name: Install runtime dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y curl pandoc
+
+      - name: Install htmlq
+        run: |
+          curl -fsSL https://github.com/mgdm/htmlq/releases/download/0.4.0/htmlq-0.4.0-x86_64-unknown-linux-gnu.zip -o /tmp/htmlq.zip
+          unzip -o /tmp/htmlq.zip -d /usr/local/bin/
+          chmod +x /usr/local/bin/htmlq
+
       - name: Verify wiki is in PATH
         run: |
           export PATH="$HOME/.local/bin:$PATH"
