@@ -9,6 +9,7 @@ make install
 ```
 
 This installs:
+
 - `curl` - HTTP client
 - `pandoc` - Document converter
 - `shellcheck` - Bash script linter
@@ -22,6 +23,7 @@ make install-dev
 ```
 
 This installs:
+
 - `prettier` - Code formatter
 - `husky` - Git hooks
 - `lint-staged` - Run linters on staged files

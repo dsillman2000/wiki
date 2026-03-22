@@ -132,6 +132,7 @@ shellcheck wiki    # Direct check
 ```
 
 Common shellcheck rules to avoid:
+
 - SC2086: Double quote to prevent globbing
 - SC2002: Useless cat
 - SC2034: Unused variables
@@ -146,6 +147,7 @@ make format-check # Check formatting without modifying
 ```
 
 Prettier config (`.prettierrc`):
+
 - Print width: 80
 - Prose wrap: preserve
 - Tab width: 2
@@ -173,6 +175,7 @@ Follow conventional commits (not strictly enforced):
 Types: `feat`, `fix`, `docs`, `refactor`, `test`, `chore`
 
 Example:
+
 ```
 feat(section): Add support for fuzzy section matching
 
@@ -200,6 +203,7 @@ npm run pre-commit  # → lint-staged → shellcheck + prettier --check
 ```
 
 To bypass (use sparingly):
+
 ```bash
 git commit --no-verify -m "message"
 ```
@@ -229,11 +233,13 @@ git commit --no-verify -m "message"
 ### Adding a New Dependency
 
 Runtime dependencies (curl, pandoc, htmlq):
+
 1. Update README.md requirements section
 2. Update Makefile `install` target
 3. Update SETUP.md
 
 Development dependencies (prettier, husky):
+
 1. Add to `package.json` devDependencies
 2. Run `npm install`
 3. Update relevant scripts/configs
@@ -315,6 +321,7 @@ wiki/
 ### Section Matching Logic
 
 Sections are matched using fuzzy substring matching:
+
 1. Headings are normalized (lowercase, alphanumeric only)
 2. User input is normalized the same way
 3. Substring match determines if section is selected
@@ -336,6 +343,7 @@ None required. All configuration is via CLI flags.
 ## Reporting Issues
 
 When filing issues, include:
+
 - Output of `wiki --version`
 - Output of `wiki --check`
 - The exact command that failed
