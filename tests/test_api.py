@@ -34,18 +34,18 @@ SAMPLE_SEARCH_RESPONSE = {
     }
 }
 
-# Minimal Wikipedia-like HTML with lead section + two sections
+# Minimal Wikipedia-like HTML with lead section + two sections (h2 + h3)
 SAMPLE_HTML = """
 <html><body>
 <section data-mw-section-id="0">
   <p>The Unix shell is a command-line interface.</p>
 </section>
 <section data-mw-section-id="1">
-  <h2>History</h2>
+  <h2 id="History">History</h2>
   <p>The Unix shell was developed in the 1970s.</p>
 </section>
 <section data-mw-section-id="2">
-  <h3>Early shells</h3>
+  <h3 id="Early_shells">Early shells</h3>
   <p>The Thompson shell was one of the first Unix shells.</p>
 </section>
 </body></html>
@@ -142,15 +142,37 @@ class TestSearch:
 
 class TestFetchArticle:
     def test_direct_title_lookup_success(self, httpx_mock: HTTPXMock) -> None:
+        # Summary call uses the query as-is
         httpx_mock.add_response(
             url="https://en.wikipedia.org/api/rest_v1/page/summary/Unix%20shell",
             json=SAMPLE_SUMMARY,
         )
+        # HTML call uses the canonical title returned by the summary ("Unix shell")
+        httpx_mock.add_response(
+            url="https://en.wikipedia.org/api/rest_v1/page/html/Unix%20shell",
+            text=SAMPLE_HTML,
+        )
         result = api.fetch_article("Unix%20shell")
         assert result["title"] == "Unix shell"
+        assert "sections" in result
+        assert isinstance(result["sections"], list)
+
+    def test_sections_are_hierarchical(self, httpx_mock: HTTPXMock) -> None:
+        httpx_mock.add_response(
+            url="https://en.wikipedia.org/api/rest_v1/page/summary/Unix%20shell",
+            json=SAMPLE_SUMMARY,
+        )
+        httpx_mock.add_response(
+            url="https://en.wikipedia.org/api/rest_v1/page/html/Unix%20shell",
+            text=SAMPLE_HTML,
+        )
+        result = api.fetch_article("Unix%20shell")
+        # "History" (h2) should have "Early shells" (h3) as a subsection
+        history = next(s for s in result["sections"] if s["title"] == "History")
+        assert any(s["title"] == "Early shells" for s in history["subsections"])
 
     def test_falls_back_to_search_on_404(self, httpx_mock: HTTPXMock) -> None:
-        # First call: 404 on direct lookup
+        # First call: 404 on direct summary lookup
         httpx_mock.add_response(
             url="https://en.wikipedia.org/api/rest_v1/page/summary/unix+shell",
             status_code=404,
@@ -176,8 +198,14 @@ class TestFetchArticle:
             url="https://en.wikipedia.org/api/rest_v1/page/summary/Unix%20shell",
             json=SAMPLE_SUMMARY,
         )
+        # Fourth call: HTML for the canonical title
+        httpx_mock.add_response(
+            url="https://en.wikipedia.org/api/rest_v1/page/html/Unix%20shell",
+            text=SAMPLE_HTML,
+        )
         result = api.fetch_article("unix+shell")
         assert result["title"] == "Unix shell"
+        assert "sections" in result
 
     def test_raises_value_error_when_no_match(self, httpx_mock: HTTPXMock) -> None:
         httpx_mock.add_response(
@@ -201,6 +229,111 @@ class TestFetchArticle:
         )
         with pytest.raises(ValueError, match="No Wikipedia article found"):
             api.fetch_article("xyzzy_nothing")
+
+    def test_empty_sections_on_html_failure(self, httpx_mock: HTTPXMock) -> None:
+        httpx_mock.add_response(
+            url="https://en.wikipedia.org/api/rest_v1/page/summary/Unix%20shell",
+            json=SAMPLE_SUMMARY,
+        )
+        # HTML endpoint unavailable
+        httpx_mock.add_response(
+            url="https://en.wikipedia.org/api/rest_v1/page/html/Unix%20shell",
+            status_code=503,
+            json={},
+        )
+        result = api.fetch_article("Unix%20shell")
+        assert result["title"] == "Unix shell"
+        assert result["sections"] == []
+
+
+class TestBuildSectionTree:
+    FLAT = [
+        {"id": "", "title": "", "level": 0, "content": "Lead."},
+        {"id": "History", "title": "History", "level": 2, "content": "History."},
+        {
+            "id": "Early_shells",
+            "title": "Early shells",
+            "level": 3,
+            "content": "Early.",
+        },
+        {
+            "id": "Later_shells",
+            "title": "Later shells",
+            "level": 3,
+            "content": "Later.",
+        },
+        {"id": "Career", "title": "Career", "level": 2, "content": "Career."},
+    ]
+
+    def test_top_level_sections(self) -> None:
+        tree = api._build_section_tree(self.FLAT)
+        titles = [s["title"] for s in tree]
+        assert "History" in titles
+        assert "Career" in titles
+        assert "" not in titles  # lead excluded
+
+    def test_h3_nested_under_h2(self) -> None:
+        tree = api._build_section_tree(self.FLAT)
+        history = next(s for s in tree if s["title"] == "History")
+        sub_titles = [s["title"] for s in history["subsections"]]
+        assert "Early shells" in sub_titles
+        assert "Later shells" in sub_titles
+
+    def test_h2_not_nested_under_sibling_h2(self) -> None:
+        tree = api._build_section_tree(self.FLAT)
+        history = next(s for s in tree if s["title"] == "History")
+        assert not any(s["title"] == "Career" for s in history["subsections"])
+
+    def test_empty_input_returns_empty(self) -> None:
+        assert api._build_section_tree([]) == []
+
+    def test_lead_only_returns_empty(self) -> None:
+        flat = [{"id": "", "title": "", "level": 0, "content": "Lead."}]
+        assert api._build_section_tree(flat) == []
+
+    def test_id_preserved(self) -> None:
+        tree = api._build_section_tree(self.FLAT)
+        history = next(s for s in tree if s["title"] == "History")
+        assert history["id"] == "History"
+
+
+class TestFlattenSections:
+    TREE = [
+        {
+            "id": "History",
+            "title": "History",
+            "level": 2,
+            "content": "History.",
+            "subsections": [
+                {
+                    "id": "Early",
+                    "title": "Early shells",
+                    "level": 3,
+                    "content": "Early.",
+                    "subsections": [],
+                }
+            ],
+        },
+        {
+            "id": "Career",
+            "title": "Career",
+            "level": 2,
+            "content": "Career.",
+            "subsections": [],
+        },
+    ]
+
+    def test_document_order(self) -> None:
+        flat = api.flatten_sections(self.TREE)
+        titles = [s["title"] for s in flat]
+        assert titles == ["History", "Early shells", "Career"]
+
+    def test_no_subsections_key_in_output(self) -> None:
+        flat = api.flatten_sections(self.TREE)
+        assert all("subsections" not in s for s in flat)
+
+    def test_empty_input(self) -> None:
+        assert api.flatten_sections([]) == []
 
 
 class TestParseSections:
@@ -227,6 +360,12 @@ class TestParseSections:
         by_title = {s["title"]: s for s in sections}
         assert "1970s" in by_title["History"]["content"]
         assert "Thompson" in by_title["Early shells"]["content"]
+
+    def test_id_extracted_from_heading(self) -> None:
+        sections = api._parse_sections(SAMPLE_HTML)
+        by_title = {s["title"]: s for s in sections}
+        assert by_title["History"]["id"] == "History"
+        assert by_title["Early shells"]["id"] == "Early_shells"
 
     def test_html_entities_decoded(self) -> None:
         html = "<h2>Bourne &amp; C shells</h2><p>Text here.</p>"
@@ -312,10 +451,20 @@ class TestGetSections:
 
 class TestFilterSections:
     SECTIONS = [
-        {"title": "", "level": 0, "content": "Lead text."},
-        {"title": "History", "level": 2, "content": "History content."},
-        {"title": "Early History", "level": 3, "content": "Early history content."},
-        {"title": "Technical details", "level": 2, "content": "Technical content."},
+        {"id": "", "title": "", "level": 0, "content": "Lead text."},
+        {"id": "History", "title": "History", "level": 2, "content": "History."},
+        {
+            "id": "Early",
+            "title": "Early History",
+            "level": 3,
+            "content": "Early history.",
+        },
+        {
+            "id": "Tech",
+            "title": "Technical details",
+            "level": 2,
+            "content": "Technical.",
+        },
     ]
 
     def test_exact_match(self) -> None:
@@ -333,6 +482,31 @@ class TestFilterSections:
         titles = [s["title"] for s in result]
         assert "History" in titles
         assert "Early History" in titles
+
+    def test_matched_section_includes_subsections(self) -> None:
+        # "History" (h2) is directly matched; "Early shells" (h3) should be
+        # included automatically as its subsection even without a direct match.
+        sections = [
+            {"id": "", "title": "", "level": 0, "content": "Lead."},
+            {"id": "Hist", "title": "History", "level": 2, "content": "History."},
+            {
+                "id": "Early",
+                "title": "Early shells",
+                "level": 3,
+                "content": "Early.",
+            },
+            {
+                "id": "Other",
+                "title": "Other section",
+                "level": 2,
+                "content": "Other.",
+            },
+        ]
+        result = api.filter_sections(sections, ("History",))
+        titles = [s["title"] for s in result]
+        assert "History" in titles
+        assert "Early shells" in titles  # subsection pulled in
+        assert "Other section" not in titles  # sibling excluded
 
     def test_multiple_queries(self) -> None:
         result = api.filter_sections(self.SECTIONS, ("History", "Technical"))

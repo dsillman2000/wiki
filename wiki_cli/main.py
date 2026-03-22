@@ -66,13 +66,18 @@ def cli(
         if search_mode:
             results = api.search(query_str)
             render.render_search_results(results, query=query_str)
-        elif list_sections:
-            sections = api.get_sections(query_str)
-            render.render_section_list(sections)
-        elif section_filter:
-            sections = api.get_sections(query_str)
-            matched = api.filter_sections(sections, section_filter)
-            render.render_sections(matched, raw=raw)
+        elif list_sections or section_filter:
+            # Both modes need the full article to get the canonical page URL
+            data = api.fetch_article(query_str)
+            flat_sections = api.flatten_sections(data.get("sections", []))
+            page_url = (
+                data.get("content_urls", {}).get("desktop", {}).get("page", "")
+            )
+            if list_sections:
+                render.render_section_list(flat_sections, page_url=page_url)
+            else:
+                matched = api.filter_sections(flat_sections, section_filter)
+                render.render_sections(matched, raw=raw, page_url=page_url)
         else:
             data = api.fetch_article(query_str)
             render.render_article(data, raw=raw)

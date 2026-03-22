@@ -85,33 +85,118 @@ def search(query: str, limit: int = 10) -> list[dict]:
 
 
 def fetch_article(query: str) -> dict:
-    """Resolve a query to a Wikipedia article and return its summary.
+    """Resolve a query to a Wikipedia article and return the full article.
 
-    Attempts a direct title lookup first.  Falls back to a search and
-    returns the summary for the top result.
+    Fetches the summary (for title, description, extract, content_urls) and
+    the full HTML (for sections).  Falls back to a search on 404.
+
+    The returned dict contains:
+        - ``title``: article title
+        - ``description``: short description
+        - ``extract``: lead paragraph (from summary, kept as fallback)
+        - ``content_urls``: dict with ``desktop.page`` URL
+        - ``sections``: hierarchical list of section dicts, each containing
+          ``id``, ``title``, ``level``, ``content``, and ``subsections``
 
     Args:
         query: Article title or search query.
 
     Returns:
-        Summary dict as returned by :func:`get_summary`.
+        Full article dict.
 
     Raises:
         httpx.HTTPStatusError: On unrecoverable HTTP errors.
         httpx.RequestError: On network failures.
         ValueError: If no articles match the query.
     """
+    # Step 1: get summary for metadata (title, description, urls)
     try:
-        return get_summary(query)
+        summary = get_summary(query)
     except httpx.HTTPStatusError as exc:
         if exc.response.status_code != 404:
             raise
+        results = search(query, limit=1)
+        if not results:
+            raise ValueError(f"No Wikipedia article found for: {query!r}")
+        summary = get_summary(results[0]["title"])
 
-    # Fall back to search
-    results = search(query, limit=1)
-    if not results:
-        raise ValueError(f"No Wikipedia article found for: {query!r}")
-    return get_summary(results[0]["title"])
+    # Step 2: fetch full HTML using the canonical title from the summary
+    canonical_title = summary.get("title", query)
+    try:
+        html = _fetch_html(canonical_title)
+        flat = _parse_sections(html)
+        section_tree = _build_section_tree(flat)
+    except (httpx.HTTPStatusError, httpx.RequestError):
+        section_tree = []
+
+    return {**summary, "sections": section_tree}
+
+
+def _build_section_tree(flat_sections: list[dict]) -> list[dict]:
+    """Build a hierarchical section tree from a flat section list.
+
+    The lead section (empty title) is excluded.  Each node in the tree
+    contains ``id``, ``title``, ``level``, ``content``, and ``subsections``.
+
+    Args:
+        flat_sections: Flat list as returned by :func:`_parse_sections`.
+
+    Returns:
+        List of top-level section dicts; sub-sections are nested under
+        their parent's ``subsections`` key.
+    """
+    tree: list[dict] = []
+    # ancestors tracks the chain of open parent nodes (most recent last)
+    ancestors: list[dict] = []
+
+    for s in flat_sections:
+        if not s.get("title"):
+            continue  # skip lead section
+
+        node: dict = {
+            "id": s.get("id", ""),
+            "title": s["title"],
+            "level": s["level"],
+            "content": s["content"],
+            "subsections": [],
+        }
+
+        # Pop ancestors that are at the same level or deeper (not parents)
+        while ancestors and ancestors[-1]["level"] >= node["level"]:
+            ancestors.pop()
+
+        if ancestors:
+            ancestors[-1]["subsections"].append(node)
+        else:
+            tree.append(node)
+
+        ancestors.append(node)
+
+    return tree
+
+
+def flatten_sections(tree: list[dict]) -> list[dict]:
+    """Flatten a hierarchical section tree back to a document-ordered list.
+
+    The returned dicts do not include the ``subsections`` key.
+
+    Args:
+        tree: Hierarchical section list as returned by :func:`_build_section_tree`.
+
+    Returns:
+        Flat list of section dicts in document order.
+    """
+    result: list[dict] = []
+    for section in tree:
+        flat = {k: v for k, v in section.items() if k != "subsections"}
+        result.append(flat)
+        result.extend(flatten_sections(section.get("subsections", [])))
+    return result
+
+
+def _flatten_section_tree(tree: list[dict]) -> list[dict]:
+    """Alias for :func:`flatten_sections` kept for internal use."""
+    return flatten_sections(tree)
 
 
 def _strip_html(text: str) -> str:
@@ -141,9 +226,10 @@ def _fetch_html(title: str) -> str:
 
 
 def _parse_sections(html_content: str) -> list[dict]:
-    """Parse Wikipedia article HTML into a list of section dicts.
+    """Parse Wikipedia article HTML into a flat list of section dicts.
 
     Each dict contains:
+        - ``id``: anchor id from the heading element (empty for lead section)
         - ``title``: section heading text (empty string for the lead section)
         - ``level``: heading level (0 for lead, 2–6 for h2–h6)
         - ``content``: plain-text content of the section
@@ -170,6 +256,7 @@ def _parse_sections(html_content: str) -> list[dict]:
     )
 
     heading_re = re.compile(r"<(h[1-6])[^>]*>(.*?)</\1>", re.DOTALL | re.IGNORECASE)
+    heading_id_re = re.compile(r'\bid="([^"]*)"', re.IGNORECASE)
     tag_re = re.compile(r"<[^>]+>")
 
     def _extract_text(fragment: str) -> str:
@@ -184,23 +271,30 @@ def _parse_sections(html_content: str) -> list[dict]:
     lead_html = clean[: headings[0].start()] if headings else clean
     lead_text = _extract_text(lead_html)
     if lead_text:
-        sections.append({"title": "", "level": 0, "content": lead_text})
+        sections.append({"id": "", "title": "", "level": 0, "content": lead_text})
 
     for i, match in enumerate(headings):
         level = int(match.group(1)[1])
         heading_text = _extract_text(match.group(2))
+        id_match = heading_id_re.search(match.group(0))
+        section_id = id_match.group(1) if id_match else ""
         start = match.end()
         end = headings[i + 1].start() if i + 1 < len(headings) else len(clean)
         content_text = _extract_text(clean[start:end])
         sections.append(
-            {"title": heading_text, "level": level, "content": content_text}
+            {
+                "id": section_id,
+                "title": heading_text,
+                "level": level,
+                "content": content_text,
+            }
         )
 
     return sections
 
 
 def get_sections(query: str) -> list[dict]:
-    """Resolve a query to a Wikipedia article and return its sections.
+    """Resolve a query to a Wikipedia article and return its flat section list.
 
     Attempts a direct title lookup first.  Falls back to a search and
     returns sections for the top result.
@@ -209,7 +303,7 @@ def get_sections(query: str) -> list[dict]:
         query: Article title or search query.
 
     Returns:
-        List of section dicts as returned by :func:`_parse_sections`.
+        Flat list of section dicts as returned by :func:`_parse_sections`.
 
     Raises:
         httpx.HTTPStatusError: On unrecoverable HTTP errors.
@@ -235,12 +329,17 @@ def filter_sections(sections: list[dict], queries: tuple[str, ...]) -> list[dict
     alphanumeric characters (spaces and punctuation are ignored).  The lead
     section (empty title) is always excluded.
 
+    Each matched section also includes any immediately following subsections
+    (sections with a higher heading level) up to the next sibling or parent.
+
     Args:
-        sections: List of section dicts as returned by :func:`get_sections`.
+        sections: Flat section list as returned by :func:`get_sections` or
+                  :func:`_flatten_section_tree`.
         queries:  One or more query strings to match against section titles.
 
     Returns:
-        Filtered list of matching section dicts.
+        Filtered list of matching section dicts (with subsections) in
+        document order.
 
     Raises:
         ValueError: If no sections match any of the given queries.
@@ -250,14 +349,34 @@ def filter_sections(sections: list[dict], queries: tuple[str, ...]) -> list[dict
         return re.sub(r"[^a-z0-9]", "", s.lower())
 
     normalised_queries = [_normalize(q) for q in queries]
-    result = [
-        s
-        for s in sections
-        if s["title"]
+
+    # Find directly-matched section indices (non-lead)
+    matched_indices = [
+        i
+        for i, s in enumerate(sections)
+        if s.get("title")
         and any(nq in _normalize(s["title"]) for nq in normalised_queries)
     ]
-    if not result:
+
+    if not matched_indices:
         raise ValueError(
             f"No sections found matching: {', '.join(repr(q) for q in queries)}"
         )
-    return result
+
+    # For each match, also collect immediately following subsections
+    seen: set[int] = set()
+    ordered: list[int] = []
+    for idx in matched_indices:
+        if idx not in seen:
+            seen.add(idx)
+            ordered.append(idx)
+        base_level = sections[idx]["level"]
+        for j in range(idx + 1, len(sections)):
+            if sections[j]["level"] > base_level:
+                if j not in seen:
+                    seen.add(j)
+                    ordered.append(j)
+            else:
+                break
+
+    return [sections[i] for i in ordered]

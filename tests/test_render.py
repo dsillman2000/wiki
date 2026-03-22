@@ -25,6 +25,23 @@ SAMPLE_DATA = {
     "title": "Unix shell",
     "description": "Type of command-line interface",
     "extract": "A Unix shell is a command-line interpreter.",
+    "sections": [
+        {
+            "id": "History",
+            "title": "History",
+            "level": 2,
+            "content": "The shell was developed in the 1970s.",
+            "subsections": [
+                {
+                    "id": "Early_shells",
+                    "title": "Early shells",
+                    "level": 3,
+                    "content": "The Thompson shell came first.",
+                    "subsections": [],
+                }
+            ],
+        }
+    ],
     "content_urls": {
         "desktop": {"page": "https://en.wikipedia.org/wiki/Unix_shell"}
     },
@@ -50,32 +67,56 @@ class TestRenderArticle:
         captured = capsys.readouterr()
         assert "# Unix shell" in captured.out
 
-    def test_raw_includes_extract(self, capsys) -> None:
+    def test_raw_includes_section_content(self, capsys) -> None:
         render.render_article(SAMPLE_DATA, raw=True)
         captured = capsys.readouterr()
-        assert "command-line interpreter" in captured.out
+        assert "1970s" in captured.out
+
+    def test_raw_includes_subsection_content(self, capsys) -> None:
+        render.render_article(SAMPLE_DATA, raw=True)
+        captured = capsys.readouterr()
+        assert "Thompson" in captured.out
 
     def test_raw_includes_source_url(self, capsys) -> None:
         render.render_article(SAMPLE_DATA, raw=True)
         captured = capsys.readouterr()
         assert "en.wikipedia.org/wiki/Unix_shell" in captured.out
 
+    def test_raw_falls_back_to_extract_when_no_sections(self, capsys) -> None:
+        data = {
+            "title": "Unix shell",
+            "extract": "A Unix shell is a command-line interpreter.",
+            "sections": [],
+            "content_urls": {
+                "desktop": {"page": "https://en.wikipedia.org/wiki/Unix_shell"}
+            },
+        }
+        render.render_article(data, raw=True)
+        captured = capsys.readouterr()
+        assert "command-line interpreter" in captured.out
+
     def test_rich_includes_title(self) -> None:
         output = _capture(render.render_article, SAMPLE_DATA)
         assert "Unix shell" in output
 
-    def test_rich_includes_extract(self) -> None:
+    def test_rich_includes_section_content(self) -> None:
         output = _capture(render.render_article, SAMPLE_DATA)
-        assert "command-line interpreter" in output
+        assert "1970s" in output
+
+    def test_rich_includes_subsection_content(self) -> None:
+        output = _capture(render.render_article, SAMPLE_DATA)
+        assert "Thompson" in output
+
+    def test_rich_includes_source_url(self) -> None:
+        output = _capture(render.render_article, SAMPLE_DATA)
+        assert "en.wikipedia.org/wiki/Unix_shell" in output
 
     def test_missing_fields_do_not_raise(self, capsys) -> None:
         render.render_article({}, raw=True)
         captured = capsys.readouterr()
-        # Should produce no output (empty dict), not raise
         assert captured.out == ""
 
     def test_rich_mode_missing_fields_do_not_raise(self) -> None:
-        # The Rich rendering path must also handle missing/empty data gracefully
         _capture(render.render_article, {})
 
 
@@ -103,8 +144,6 @@ class TestRenderSearchResults:
         output = _capture(
             render.render_search_results, self.RESULTS, query="Unix shell"
         )
-        # The URL may be word-wrapped by Rich's table column; check for a stable
-        # fragment that will always be present regardless of wrapping.
         assert "wikipedia" in output
 
     def test_empty_results_shows_no_results_message(self) -> None:
@@ -132,7 +171,6 @@ class TestRenderSectionList:
             {"title": "History", "level": 2, "content": "Content."},
         ]
         output = _capture(render.render_section_list, sections)
-        # Lead (empty title) should not contribute a blank title line
         assert "History" in output
 
     def test_sub_section_indented(self) -> None:
@@ -140,10 +178,21 @@ class TestRenderSectionList:
         lines = output.splitlines()
         history_line = next(line for line in lines if "History" in line)
         early_line = next(line for line in lines if "Early shells" in line)
-        # Early shells (h3) should have more leading spaces than History (h2)
         assert len(early_line) - len(early_line.lstrip()) > len(history_line) - len(
             history_line.lstrip()
         )
+
+    def test_shows_source_url_when_provided(self) -> None:
+        output = _capture(
+            render.render_section_list,
+            SAMPLE_SECTIONS,
+            page_url="https://en.wikipedia.org/wiki/Unix_shell",
+        )
+        assert "en.wikipedia.org/wiki/Unix_shell" in output
+
+    def test_no_source_url_by_default(self) -> None:
+        output = _capture(render.render_section_list, SAMPLE_SECTIONS)
+        assert "Source" not in output
 
 
 class TestRenderSections:
@@ -162,6 +211,15 @@ class TestRenderSections:
         captured = capsys.readouterr()
         assert "## History" in captured.out
 
+    def test_raw_includes_source_url(self, capsys) -> None:
+        render.render_sections(
+            SAMPLE_SECTIONS[:1],
+            raw=True,
+            page_url="https://en.wikipedia.org/wiki/Unix_shell",
+        )
+        captured = capsys.readouterr()
+        assert "en.wikipedia.org/wiki/Unix_shell" in captured.out
+
     def test_rich_mode_includes_title(self) -> None:
         output = _capture(render.render_sections, SAMPLE_SECTIONS)
         assert "History" in output
@@ -170,13 +228,26 @@ class TestRenderSections:
         output = _capture(render.render_sections, SAMPLE_SECTIONS)
         assert "1970s" in output
 
+    def test_rich_mode_includes_source_url(self) -> None:
+        output = _capture(
+            render.render_sections,
+            SAMPLE_SECTIONS,
+            page_url="https://en.wikipedia.org/wiki/Unix_shell",
+        )
+        assert "en.wikipedia.org/wiki/Unix_shell" in output
+
+    def test_no_source_url_by_default(self, capsys) -> None:
+        render.render_sections(SAMPLE_SECTIONS[:1], raw=True)
+        captured = capsys.readouterr()
+        assert "Source" not in captured.out
+
     def test_empty_sections_shows_message(self) -> None:
         output = _capture(render.render_sections, [])
         assert "No sections" in output
 
     def test_missing_fields_do_not_raise(self, capsys) -> None:
         render.render_sections([{}], raw=True)
-        capsys.readouterr()  # should not raise
+        capsys.readouterr()
 
     def test_rich_missing_fields_do_not_raise(self) -> None:
         _capture(render.render_sections, [{}])
