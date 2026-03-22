@@ -118,7 +118,7 @@ def _render_markdown_with_code(text: str) -> None:
     for i in range(1, len(parts), 3):
         lang = parts[i] if i < len(parts) else ""
         code = parts[i + 1] if i + 1 < len(parts) else ""
-        console.print(Syntax(code.strip(), language=lang or "text", theme="monokai"))
+        console.print(Syntax(code.strip(), lexer=lang or "text", theme="monokai"))
         remainder = parts[i + 2] if i + 2 < len(parts) else ""
         if remainder:
             console.print(Markdown(remainder))
