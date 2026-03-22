@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import re
+
 from rich import box
 from rich.console import Console
 from rich.markdown import Markdown
+from rich.syntax import Syntax
 from rich.table import Table
 
 console = Console()
@@ -98,6 +101,29 @@ def _table_to_rich(table: dict) -> Table:
     return rich_table
 
 
+_CODE_BLOCK_RE = re.compile(r"```(\w*)\n(.*?)```", re.DOTALL)
+
+
+def _render_markdown_with_code(text: str) -> None:
+    """Render markdown text, using Rich Syntax for code blocks.
+
+    Args:
+        text: Markdown text that may contain code fences.
+    """
+    parts = _CODE_BLOCK_RE.split(text)
+    first = parts[0]
+    if first:
+        console.print(Markdown(first))
+
+    for i in range(1, len(parts), 3):
+        lang = parts[i] if i < len(parts) else ""
+        code = parts[i + 1] if i + 1 < len(parts) else ""
+        console.print(Syntax(code.strip(), language=lang or "text", theme="monokai"))
+        remainder = parts[i + 2] if i + 2 < len(parts) else ""
+        if remainder:
+            console.print(Markdown(remainder))
+
+
 # ---------------------------------------------------------------------------
 # Internal section-tree renderers
 # ---------------------------------------------------------------------------
@@ -150,7 +176,7 @@ def _render_section_tree_rich(sections: list[dict]) -> None:
         if content:
             md_parts.append(content)
         if md_parts:
-            console.print(Markdown("\n".join(md_parts)))
+            _render_markdown_with_code("\n".join(md_parts))
             console.print()
 
         for table in tables:
@@ -206,12 +232,12 @@ def render_article(data: dict, *, raw: bool = False) -> None:
             md_parts.append(f"*{description}*")
         md_parts.append("")
     if md_parts:
-        console.print(Markdown("\n".join(md_parts)))
+        _render_markdown_with_code("\n".join(md_parts))
 
     if sections:
         _render_section_tree_rich(sections)
     elif extract:
-        console.print(Markdown(extract))
+        _render_markdown_with_code(extract)
 
     if page_url:
         console.print(Markdown(f"*Source: <{page_url}>*"))
@@ -318,7 +344,7 @@ def render_sections(
             if content:
                 md_parts.append(content)
             if md_parts:
-                console.print(Markdown("\n".join(md_parts)))
+                _render_markdown_with_code("\n".join(md_parts))
                 console.print()
             for table in tables:
                 console.print(_table_to_rich(table))

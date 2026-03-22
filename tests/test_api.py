@@ -723,3 +723,184 @@ class TestFetchArticleWithUrl:
         )
         result = api.fetch_article("https://en.wikipedia.org/wiki/Unix_shell")
         assert result["title"] == "Unix shell"
+
+
+# ---------------------------------------------------------------------------
+# Content formatting: code blocks, inline code, blockquotes, links
+# ---------------------------------------------------------------------------
+
+
+class TestCodeBlockExtraction:
+    def test_code_block_extracted_as_fence(self) -> None:
+        html = """
+        <section data-mw-section-id="1">
+            <h2>Example</h2>
+            <p>Here is some code:</p>
+            <div class="mw-highlight mw-highlight-lang-python"
+                 data-mw='{"name":"syntaxhighlight",
+                 "attrs":{"lang":"python"},
+                 "body":{"extsrc":"def hello():\\n    print(\\"H\\")"}}'>
+                <pre><span>code</span></pre>
+            </div>
+        </section>
+        """
+        sections = api._parse_sections(html)
+        assert "```python" in sections[0]["content"]
+        assert "def hello():" in sections[0]["content"]
+        assert "print" in sections[0]["content"]
+
+    def test_code_block_preserves_newlines(self) -> None:
+        html = """
+        <section data-mw-section-id="1">
+            <h2>Example</h2>
+            <pre>line1
+line2
+line3</pre>
+        </section>
+        """
+        sections = api._parse_sections(html)
+        assert "line1" in sections[0]["content"]
+        assert "line2" in sections[0]["content"]
+
+    def test_multiple_code_blocks(self) -> None:
+        html = """
+        <section data-mw-section-id="1">
+            <h2>Examples</h2>
+            <pre>code1</pre>
+            <p>Some text</p>
+            <pre>code2</pre>
+        </section>
+        """
+        sections = api._parse_sections(html)
+        content = sections[0]["content"]
+        assert "code1" in content
+        assert "code2" in content
+
+
+class TestInlineCode:
+    def test_inline_code_wrapped_in_backticks(self) -> None:
+        html = """
+        <section data-mw-section-id="1">
+            <h2>Example</h2>
+            <p>Use <code>print()</code> to output text.</p>
+        </section>
+        """
+        sections = api._parse_sections(html)
+        assert "`print()`" in sections[0]["content"]
+
+    def test_inline_code_preserves_text(self) -> None:
+        html = """
+        <section data-mw-section-id="1">
+            <h2>Example</h2>
+            <p>The <code>main</code> function.</p>
+        </section>
+        """
+        sections = api._parse_sections(html)
+        assert "`main`" in sections[0]["content"]
+        assert "function" in sections[0]["content"]
+
+
+class TestBlockquoteRendering:
+    def test_blockquote_converted_to_markdown(self) -> None:
+        html = """
+        <section data-mw-section-id="1">
+            <h2>Example</h2>
+            <blockquote>
+                <p>This is a quote.</p>
+            </blockquote>
+        </section>
+        """
+        sections = api._parse_sections(html)
+        assert "> This is a quote" in sections[0]["content"]
+
+    def test_nested_blockquote(self) -> None:
+        html = """
+        <section data-mw-section-id="1">
+            <h2>Example</h2>
+            <blockquote>
+                <p>Outer quote.</p>
+                <blockquote>
+                    <p>Inner quote.</p>
+                </blockquote>
+            </blockquote>
+        </section>
+        """
+        sections = api._parse_sections(html)
+        content = sections[0]["content"]
+        assert "> Outer quote" in content
+        assert "> Inner quote" in content
+
+
+class TestWikipediaLinks:
+    def test_internal_wiki_link_converted(self) -> None:
+        html = """
+        <section data-mw-section-id="1">
+            <h2>Example</h2>
+            <p><a rel="mw:WikiLink" href="./OOP">object-oriented</a> programming.</p>
+        </section>
+        """
+        sections = api._parse_sections(html)
+        assert "[object-oriented](OOP)" in sections[0]["content"]
+
+    def test_external_link_converted(self) -> None:
+        html = """
+        <section data-mw-section-id="1">
+            <h2>Example</h2>
+            <p>Visit <a rel="mw:ExtLink" href="https://python.org">python.org</a>.</p>
+        </section>
+        """
+        sections = api._parse_sections(html)
+        assert "[python.org](https://python.org)" in sections[0]["content"]
+
+    def test_link_with_display_text(self) -> None:
+        html = """
+        <section data-mw-section-id="1">
+            <h2>Example</h2>
+            <p>See <a rel="mw:WikiLink" href="./Author">Guido</a>.</p>
+        </section>
+        """
+        sections = api._parse_sections(html)
+        assert "[Guido]" in sections[0]["content"]
+
+
+class TestMixedContent:
+    def test_code_and_text_mixed(self) -> None:
+        html = """
+        <section data-mw-section-id="1">
+            <h2>Example</h2>
+            <p>Define a function:</p>
+            <pre>def foo(): pass</pre>
+            <p>Then call it.</p>
+        </section>
+        """
+        sections = api._parse_sections(html)
+        content = sections[0]["content"]
+        assert "Define a function:" in content
+        assert "Then call it." in content
+        assert "```" in content  # code fence present
+
+    def test_code_inline_and_block(self) -> None:
+        html = """
+        <section data-mw-section-id="1">
+            <h2>Example</h2>
+            <p>Use <code>x</code> variable.</p>
+            <pre>def f(): pass</pre>
+        </section>
+        """
+        sections = api._parse_sections(html)
+        content = sections[0]["content"]
+        assert "`x`" in content
+        assert "```" in content
+
+    def test_quote_and_link(self) -> None:
+        html = """
+        <section data-mw-section-id="1">
+            <h2>Example</h2>
+            <blockquote>
+                <p>See <a rel="mw:WikiLink" href="./API">the API</a>.</p>
+            </blockquote>
+        </section>
+        """
+        sections = api._parse_sections(html)
+        content = sections[0]["content"]
+        assert "> See [the API]" in content
