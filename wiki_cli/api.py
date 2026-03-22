@@ -13,6 +13,22 @@ _SUMMARY_URL = "https://en.wikipedia.org/api/rest_v1/page/summary/{title}"
 _HTML_URL = "https://en.wikipedia.org/api/rest_v1/page/html/{title}"
 _SEARCH_URL = "https://en.wikipedia.org/w/api.php"
 
+# Pre-compiled regex constants used across multiple functions
+_TAG_RE = re.compile(r"<[^>]+>")
+_TABLE_RE = re.compile(r"<table\b[^>]*>.*?</table>", re.DOTALL | re.IGNORECASE)
+_WIKITABLE_RE = re.compile(
+    r'<table\b[^>]*\bclass="[^"]*\bwikitable\b[^"]*"[^>]*>(.*?)</table>',
+    re.DOTALL | re.IGNORECASE,
+)
+_CAPTION_RE = re.compile(
+    r"<caption\b[^>]*>(.*?)</caption>", re.DOTALL | re.IGNORECASE
+)
+_ROW_RE = re.compile(r"<tr\b[^>]*>(.*?)</tr>", re.DOTALL | re.IGNORECASE)
+_TH_RE = re.compile(r"<th\b[^>]*>(.*?)</th>", re.DOTALL | re.IGNORECASE)
+_TD_RE = re.compile(r"<td\b[^>]*>(.*?)</td>", re.DOTALL | re.IGNORECASE)
+_HEADING_RE = re.compile(r"<(h[1-6])[^>]*>(.*?)</\1>", re.DOTALL | re.IGNORECASE)
+_HEADING_ID_RE = re.compile(r'\bid="([^"]*)"', re.IGNORECASE)
+
 
 def get_summary(title: str) -> dict:
     """Fetch the summary for a Wikipedia article by exact title.
@@ -158,6 +174,7 @@ def _build_section_tree(flat_sections: list[dict]) -> list[dict]:
             "title": s["title"],
             "level": s["level"],
             "content": s["content"],
+            "tables": s.get("tables", []),
             "subsections": [],
         }
 
@@ -201,7 +218,83 @@ def _flatten_section_tree(tree: list[dict]) -> list[dict]:
 
 def _strip_html(text: str) -> str:
     """Remove simple HTML tags from a snippet string."""
-    return re.sub(r"<[^>]+>", "", text)
+    return _TAG_RE.sub("", text)
+
+
+def _extract_text(fragment: str) -> str:
+    """Strip all HTML tags, unescape entities, and collapse whitespace."""
+    text = _TAG_RE.sub("", fragment)
+    text = _html_module.unescape(text)
+    return re.sub(r"\s+", " ", text).strip()
+
+
+def _strip_all_tables(html: str) -> str:
+    """Iteratively remove all ``<table>`` elements from *html*.
+
+    Repeats until no tables remain, so nested tables are handled correctly.
+
+    Args:
+        html: Raw HTML fragment.
+
+    Returns:
+        HTML string with all table elements removed.
+    """
+    prev = None
+    while prev != html:
+        prev = html
+        html = _TABLE_RE.sub("", html)
+    return html
+
+
+def _parse_tables(html_fragment: str) -> list[dict]:
+    """Parse ``<table class="wikitable">`` elements from an HTML fragment.
+
+    Each returned dict contains:
+        - ``caption``: table caption text (empty string if absent)
+        - ``headers``: list of header cell strings (empty if no ``<th>`` row)
+        - ``rows``: list of data rows, each a list of cell strings
+
+    Cells are plain text — all HTML tags are stripped and entities decoded.
+    colspan / rowspan attributes are ignored (only cell text is extracted).
+
+    Args:
+        html_fragment: Raw HTML string (e.g. the content of one section).
+
+    Returns:
+        List of table dicts in document order.
+    """
+
+    def _cell_text(cell_html: str) -> str:
+        # Remove nested tables so their text is not mixed into the cell
+        clean = _strip_all_tables(cell_html)
+        return _extract_text(clean)
+
+    tables: list[dict] = []
+    for table_match in _WIKITABLE_RE.finditer(html_fragment):
+        table_inner = table_match.group(1)
+
+        cap_match = _CAPTION_RE.search(table_inner)
+        caption = _cell_text(cap_match.group(1)) if cap_match else ""
+
+        headers: list[str] = []
+        rows: list[list[str]] = []
+
+        for row_match in _ROW_RE.finditer(table_inner):
+            row_html = row_match.group(1)
+            th_cells = [_cell_text(m.group(1)) for m in _TH_RE.finditer(row_html)]
+            td_cells = [_cell_text(m.group(1)) for m in _TD_RE.finditer(row_html)]
+
+            if th_cells and not td_cells:
+                # Pure header row — use the first one as the column headers
+                if not headers:
+                    headers = th_cells
+            elif td_cells:
+                rows.append(td_cells)
+
+        if headers or rows:
+            tables.append({"caption": caption, "headers": headers, "rows": rows})
+
+    return tables
 
 
 def _fetch_html(title: str) -> str:
@@ -232,7 +325,8 @@ def _parse_sections(html_content: str) -> list[dict]:
         - ``id``: anchor id from the heading element (empty for lead section)
         - ``title``: section heading text (empty string for the lead section)
         - ``level``: heading level (0 for lead, 2–6 for h2–h6)
-        - ``content``: plain-text content of the section
+        - ``content``: plain-text content of the section (tables excluded)
+        - ``tables``: list of table dicts parsed by :func:`_parse_tables`
 
     Args:
         html_content: Raw HTML string from the Wikipedia REST API.
@@ -255,39 +349,38 @@ def _parse_sections(html_content: str) -> list[dict]:
         flags=re.DOTALL | re.IGNORECASE,
     )
 
-    heading_re = re.compile(r"<(h[1-6])[^>]*>(.*?)</\1>", re.DOTALL | re.IGNORECASE)
-    heading_id_re = re.compile(r'\bid="([^"]*)"', re.IGNORECASE)
-    tag_re = re.compile(r"<[^>]+>")
-
-    def _extract_text(fragment: str) -> str:
-        text = tag_re.sub("", fragment)
-        text = _html_module.unescape(text)
-        return re.sub(r"\s+", " ", text).strip()
-
-    headings = list(heading_re.finditer(clean))
+    headings = list(_HEADING_RE.finditer(clean))
     sections: list[dict] = []
+
+    def _section_entry(
+        section_id: str, title: str, level: int, raw_html: str
+    ) -> dict:
+        tables = _parse_tables(raw_html)
+        text_html = _strip_all_tables(raw_html)
+        content = _extract_text(text_html)
+        return {
+            "id": section_id,
+            "title": title,
+            "level": level,
+            "content": content,
+            "tables": tables,
+        }
 
     # Lead section (content before the first heading)
     lead_html = clean[: headings[0].start()] if headings else clean
-    lead_text = _extract_text(lead_html)
-    if lead_text:
-        sections.append({"id": "", "title": "", "level": 0, "content": lead_text})
+    lead_entry = _section_entry("", "", 0, lead_html)
+    if lead_entry["content"] or lead_entry["tables"]:
+        sections.append(lead_entry)
 
     for i, match in enumerate(headings):
         level = int(match.group(1)[1])
         heading_text = _extract_text(match.group(2))
-        id_match = heading_id_re.search(match.group(0))
+        id_match = _HEADING_ID_RE.search(match.group(0))
         section_id = id_match.group(1) if id_match else ""
         start = match.end()
         end = headings[i + 1].start() if i + 1 < len(headings) else len(clean)
-        content_text = _extract_text(clean[start:end])
         sections.append(
-            {
-                "id": section_id,
-                "title": heading_text,
-                "level": level,
-                "content": content_text,
-            }
+            _section_entry(section_id, heading_text, level, clean[start:end])
         )
 
     return sections

@@ -532,3 +532,179 @@ class TestStripHtml:
 
     def test_plain_text_unchanged(self) -> None:
         assert api._strip_html("plain text") == "plain text"
+
+
+# ---------------------------------------------------------------------------
+# Wikitable fixture HTML
+# ---------------------------------------------------------------------------
+
+SAMPLE_TABLE_HTML = """
+<h2 id="Filmography">Filmography</h2>
+<table class="wikitable sortable">
+  <caption>Film appearances</caption>
+  <tr><th>Year</th><th>Title</th><th>Role</th></tr>
+  <tr><td>1997</td><td><i>Who's the Caboose?</i></td><td>Max</td></tr>
+  <tr><td>1998</td><td><i>Next Stop Wonderland</i></td><td>Kevin</td></tr>
+</table>
+<p>Some additional text.</p>
+"""
+
+SAMPLE_HTML_WITH_TABLE = """
+<html><body>
+<p>Lead paragraph.</p>
+<h2 id="History">History</h2>
+<p>History content.</p>
+<h2 id="Filmography">Filmography</h2>
+<table class="wikitable sortable">
+  <caption>Film appearances</caption>
+  <tr><th>Year</th><th>Title</th><th>Role</th></tr>
+  <tr><td>1997</td><td>Who's the Caboose?</td><td>Max</td></tr>
+  <tr><td>1998</td><td>Next Stop Wonderland</td><td>Kevin</td></tr>
+</table>
+<p>See also the TV work.</p>
+</body></html>
+"""
+
+NON_WIKITABLE_HTML = """
+<table class="infobox">
+  <tr><td>Name</td><td>Sam Seder</td></tr>
+</table>
+"""
+
+
+class TestParseTables:
+    def test_basic_wikitable(self) -> None:
+        tables = api._parse_tables(SAMPLE_TABLE_HTML)
+        assert len(tables) == 1
+        t = tables[0]
+        assert t["headers"] == ["Year", "Title", "Role"]
+        assert len(t["rows"]) == 2
+
+    def test_caption_extracted(self) -> None:
+        tables = api._parse_tables(SAMPLE_TABLE_HTML)
+        assert tables[0]["caption"] == "Film appearances"
+
+    def test_data_rows_extracted(self) -> None:
+        tables = api._parse_tables(SAMPLE_TABLE_HTML)
+        assert tables[0]["rows"][0][0] == "1997"
+        assert "Caboose" in tables[0]["rows"][0][1]
+        assert tables[0]["rows"][0][2] == "Max"
+
+    def test_non_wikitable_ignored(self) -> None:
+        tables = api._parse_tables(NON_WIKITABLE_HTML)
+        assert tables == []
+
+    def test_empty_html_returns_empty(self) -> None:
+        assert api._parse_tables("") == []
+
+    def test_no_table_returns_empty(self) -> None:
+        assert api._parse_tables("<p>Plain text.</p>") == []
+
+    def test_html_stripped_from_cells(self) -> None:
+        html = """
+        <table class="wikitable">
+          <tr><th>Title</th></tr>
+          <tr><td><a href="/wiki/Foo">Foo article</a></td></tr>
+        </table>
+        """
+        tables = api._parse_tables(html)
+        assert tables[0]["rows"][0][0] == "Foo article"
+
+    def test_table_without_caption(self) -> None:
+        html = """
+        <table class="wikitable">
+          <tr><th>A</th><th>B</th></tr>
+          <tr><td>1</td><td>2</td></tr>
+        </table>
+        """
+        tables = api._parse_tables(html)
+        assert tables[0]["caption"] == ""
+
+    def test_table_without_headers(self) -> None:
+        html = """
+        <table class="wikitable">
+          <tr><td>a</td><td>b</td></tr>
+          <tr><td>c</td><td>d</td></tr>
+        </table>
+        """
+        tables = api._parse_tables(html)
+        assert tables[0]["headers"] == []
+        assert len(tables[0]["rows"]) == 2
+
+    def test_multiple_tables(self) -> None:
+        html = """
+        <table class="wikitable"><tr><th>A</th></tr><tr><td>1</td></tr></table>
+        <table class="wikitable"><tr><th>B</th></tr><tr><td>2</td></tr></table>
+        """
+        tables = api._parse_tables(html)
+        assert len(tables) == 2
+        assert tables[0]["headers"] == ["A"]
+        assert tables[1]["headers"] == ["B"]
+
+
+class TestParseSectionsWithTables:
+    def test_section_has_tables_key(self) -> None:
+        sections = api._parse_sections(SAMPLE_HTML_WITH_TABLE)
+        for s in sections:
+            assert "tables" in s
+
+    def test_table_extracted_from_section(self) -> None:
+        sections = api._parse_sections(SAMPLE_HTML_WITH_TABLE)
+        by_title = {s["title"]: s for s in sections}
+        film_tables = by_title["Filmography"]["tables"]
+        assert len(film_tables) == 1
+        assert film_tables[0]["headers"] == ["Year", "Title", "Role"]
+
+    def test_table_text_not_in_content(self) -> None:
+        sections = api._parse_sections(SAMPLE_HTML_WITH_TABLE)
+        by_title = {s["title"]: s for s in sections}
+        # "Year", "Title", "Role" (headers) should not appear in plain-text content
+        content = by_title["Filmography"]["content"]
+        assert "Year" not in content
+        assert "1997" not in content
+
+    def test_section_without_table_has_empty_tables(self) -> None:
+        sections = api._parse_sections(SAMPLE_HTML_WITH_TABLE)
+        by_title = {s["title"]: s for s in sections}
+        assert by_title["History"]["tables"] == []
+
+    def test_non_table_content_still_extracted(self) -> None:
+        sections = api._parse_sections(SAMPLE_HTML_WITH_TABLE)
+        by_title = {s["title"]: s for s in sections}
+        assert "TV work" in by_title["Filmography"]["content"]
+
+
+class TestBuildSectionTreeWithTables:
+    def test_tables_preserved_in_tree(self) -> None:
+        flat = api._parse_sections(SAMPLE_HTML_WITH_TABLE)
+        tree = api._build_section_tree(flat)
+        by_title = {s["title"]: s for s in tree}
+        assert len(by_title["Filmography"]["tables"]) == 1
+
+    def test_tables_preserved_in_flatten(self) -> None:
+        flat = api._parse_sections(SAMPLE_HTML_WITH_TABLE)
+        tree = api._build_section_tree(flat)
+        flattened = api.flatten_sections(tree)
+        by_title = {s["title"]: s for s in flattened}
+        assert len(by_title["Filmography"]["tables"]) == 1
+
+
+class TestStripAllTables:
+    def test_removes_single_table(self) -> None:
+        html = "<p>Before</p><table><tr><td>x</td></tr></table><p>After</p>"
+        result = api._strip_all_tables(html)
+        assert "<table" not in result
+        assert "Before" in result
+        assert "After" in result
+
+    def test_removes_nested_tables(self) -> None:
+        html = "<table><tr><td><table><tr><td>inner</td></tr></table></td></tr></table>"
+        result = api._strip_all_tables(html)
+        assert "<table" not in result
+
+    def test_empty_input(self) -> None:
+        assert api._strip_all_tables("") == ""
+
+    def test_no_table_unchanged(self) -> None:
+        html = "<p>No table here.</p>"
+        assert api._strip_all_tables(html) == html

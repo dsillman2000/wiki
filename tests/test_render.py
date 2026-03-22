@@ -251,3 +251,171 @@ class TestRenderSections:
 
     def test_rich_missing_fields_do_not_raise(self) -> None:
         _capture(render.render_sections, [{}])
+
+
+# ---------------------------------------------------------------------------
+# Table rendering tests
+# ---------------------------------------------------------------------------
+
+SAMPLE_TABLE = {
+    "caption": "Film appearances",
+    "headers": ["Year", "Title", "Role"],
+    "rows": [
+        ["1997", "Who's the Caboose?", "Max"],
+        ["1998", "Next Stop Wonderland", "Kevin"],
+    ],
+}
+
+SAMPLE_TABLE_NO_HEADERS = {
+    "caption": "",
+    "headers": [],
+    "rows": [["a", "b"], ["c", "d"]],
+}
+
+SECTION_WITH_TABLE = {
+    "title": "Filmography",
+    "level": 2,
+    "content": "See also the TV work.",
+    "tables": [SAMPLE_TABLE],
+}
+
+
+class TestTableToMarkdown:
+    def test_headers_in_output(self) -> None:
+        md = render._table_to_markdown(SAMPLE_TABLE)
+        assert "Year" in md
+        assert "Title" in md
+        assert "Role" in md
+
+    def test_rows_in_output(self) -> None:
+        md = render._table_to_markdown(SAMPLE_TABLE)
+        assert "1997" in md
+        assert "Caboose" in md
+
+    def test_separator_row_present(self) -> None:
+        md = render._table_to_markdown(SAMPLE_TABLE)
+        assert "---" in md
+
+    def test_caption_shown_italic(self) -> None:
+        md = render._table_to_markdown(SAMPLE_TABLE)
+        assert "*Film appearances*" in md
+
+    def test_no_headers_uses_empty_header_row(self) -> None:
+        md = render._table_to_markdown(SAMPLE_TABLE_NO_HEADERS)
+        assert "a" in md
+        assert "b" in md
+
+    def test_empty_table_returns_empty_string(self) -> None:
+        t = {"caption": "", "headers": [], "rows": []}
+        assert render._table_to_markdown(t) == ""
+
+    def test_pipe_delimited_format(self) -> None:
+        md = render._table_to_markdown(SAMPLE_TABLE)
+        lines = md.splitlines()
+        assert any(line.startswith("|") for line in lines)
+
+
+class TestTableToRich:
+    def test_returns_rich_table_object(self) -> None:
+        from rich.table import Table as RichTable
+
+        t = render._table_to_rich(SAMPLE_TABLE)
+        assert isinstance(t, RichTable)
+
+    def test_column_count_matches_headers(self) -> None:
+        t = render._table_to_rich(SAMPLE_TABLE)
+        assert len(t.columns) == 3
+
+    def test_row_count_matches(self) -> None:
+        t = render._table_to_rich(SAMPLE_TABLE)
+        assert t.row_count == 2
+
+    def test_caption_set(self) -> None:
+        t = render._table_to_rich(SAMPLE_TABLE)
+        assert t.title == "Film appearances"
+
+    def test_no_headers_still_creates_columns(self) -> None:
+        t = render._table_to_rich(SAMPLE_TABLE_NO_HEADERS)
+        assert len(t.columns) == 2
+
+    def test_empty_table_creates_no_columns(self) -> None:
+        t = render._table_to_rich({"caption": "", "headers": [], "rows": []})
+        assert len(t.columns) == 0
+
+
+class TestRenderSectionsWithTables:
+    def test_raw_includes_table_markdown(self, capsys) -> None:
+        render.render_sections([SECTION_WITH_TABLE], raw=True)
+        captured = capsys.readouterr()
+        assert "Year" in captured.out
+        assert "1997" in captured.out
+        assert "|" in captured.out
+
+    def test_raw_content_still_present(self, capsys) -> None:
+        render.render_sections([SECTION_WITH_TABLE], raw=True)
+        captured = capsys.readouterr()
+        assert "TV work" in captured.out
+
+    def test_rich_includes_table(self) -> None:
+        output = _capture(render.render_sections, [SECTION_WITH_TABLE])
+        assert "Year" in output
+        assert "1997" in output
+
+    def test_no_table_data_in_content_text(self, capsys) -> None:
+        # Table headers should appear as table, not as garbled content text
+        render.render_sections([SECTION_WITH_TABLE], raw=True)
+        captured = capsys.readouterr()
+        # "Year" must appear exactly inside the table part (after heading)
+        assert "## Filmography" in captured.out
+
+    def test_section_no_table_still_renders(self, capsys) -> None:
+        section = {
+            "title": "History",
+            "level": 2,
+            "content": "Some history.",
+            "tables": [],
+        }
+        render.render_sections([section], raw=True)
+        captured = capsys.readouterr()
+        assert "Some history." in captured.out
+
+
+class TestRenderArticleWithTables:
+    ARTICLE_WITH_TABLE = {
+        "title": "Sam Seder",
+        "description": "American comedian",
+        "extract": "Sam Seder is an American comedian.",
+        "sections": [
+            {
+                "id": "Filmography",
+                "title": "Filmography",
+                "level": 2,
+                "content": "See also the TV work.",
+                "tables": [SAMPLE_TABLE],
+                "subsections": [],
+            }
+        ],
+        "content_urls": {
+            "desktop": {"page": "https://en.wikipedia.org/wiki/Sam_Seder"}
+        },
+    }
+
+    def test_raw_article_includes_table(self, capsys) -> None:
+        render.render_article(self.ARTICLE_WITH_TABLE, raw=True)
+        captured = capsys.readouterr()
+        assert "Year" in captured.out
+        assert "|" in captured.out
+
+    def test_rich_article_includes_table(self) -> None:
+        output = _capture(render.render_article, self.ARTICLE_WITH_TABLE)
+        assert "Year" in output
+
+    def test_raw_table_not_garbled_in_content(self, capsys) -> None:
+        render.render_article(self.ARTICLE_WITH_TABLE, raw=True)
+        captured = capsys.readouterr()
+        # Should not see "Year" mixed into the paragraph content
+        lines = captured.out.splitlines()
+        content_line_idx = next(
+            (i for i, line in enumerate(lines) if "TV work" in line), None
+        )
+        assert content_line_idx is not None

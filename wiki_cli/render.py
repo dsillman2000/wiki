@@ -10,6 +10,161 @@ from rich.table import Table
 console = Console()
 
 
+# ---------------------------------------------------------------------------
+# Table helpers
+# ---------------------------------------------------------------------------
+
+
+def _table_ncols(table: dict) -> int:
+    """Return the number of columns for *table*.
+
+    Derived from the header count, falling back to the first data row, then 0.
+    """
+    headers = table.get("headers", [])
+    rows = table.get("rows", [])
+    if headers:
+        return len(headers)
+    return len(rows[0]) if rows else 0
+
+
+def _table_to_markdown(table: dict) -> str:
+    """Convert a table dict to a GitHub Flavored Markdown table string.
+
+    Args:
+        table: Dict with ``caption``, ``headers``, and ``rows`` keys.
+
+    Returns:
+        Multi-line Markdown string, or empty string if the table has no data.
+    """
+    headers = table.get("headers", [])
+    rows = table.get("rows", [])
+    caption = table.get("caption", "")
+
+    ncols = _table_ncols(table)
+    if ncols == 0:
+        return ""
+
+    lines: list[str] = []
+    if caption:
+        lines.append(f"*{caption}*")
+        lines.append("")
+
+    if headers:
+        lines.append("| " + " | ".join(headers) + " |")
+    else:
+        lines.append("| " + " | ".join([""] * ncols) + " |")
+    lines.append("| " + " | ".join(["---"] * ncols) + " |")
+
+    for row in rows:
+        padded = list(row) + [""] * max(0, ncols - len(row))
+        lines.append("| " + " | ".join(padded[:ncols]) + " |")
+
+    return "\n".join(lines)
+
+
+def _table_to_rich(table: dict) -> Table:
+    """Convert a table dict to a Rich :class:`~rich.table.Table` object.
+
+    Args:
+        table: Dict with ``caption``, ``headers``, and ``rows`` keys.
+
+    Returns:
+        A Rich Table ready for printing.
+    """
+    headers = table.get("headers", [])
+    rows = table.get("rows", [])
+    caption = table.get("caption", "") or None
+
+    ncols = _table_ncols(table)
+
+    rich_table = Table(
+        title=caption,
+        box=box.SIMPLE_HEAVY,
+        show_header=bool(headers),
+        header_style="bold",
+        expand=False,
+    )
+    if headers:
+        for header in headers:
+            rich_table.add_column(header, overflow="fold")
+    else:
+        for _ in range(ncols):
+            rich_table.add_column("", overflow="fold")
+
+    for row in rows:
+        padded = list(row) + [""] * max(0, ncols - len(row))
+        rich_table.add_row(*padded[:ncols])
+
+    return rich_table
+
+
+# ---------------------------------------------------------------------------
+# Internal section-tree renderers
+# ---------------------------------------------------------------------------
+
+
+def _render_section_tree_raw(sections: list[dict]) -> None:
+    """Recursively render a hierarchical section tree as plain text.
+
+    Args:
+        sections: List of section dicts (may include ``subsections`` and ``tables``).
+    """
+    for section in sections:
+        title = section.get("title", "")
+        content = section.get("content", "")
+        level = section.get("level", 2)
+        tables = section.get("tables", [])
+        subsections = section.get("subsections", [])
+
+        if title:
+            print(f"{'#' * level} {title}")
+            print()
+        if content:
+            print(content)
+            print()
+        for table in tables:
+            md = _table_to_markdown(table)
+            if md:
+                print(md)
+                print()
+        _render_section_tree_raw(subsections)
+
+
+def _render_section_tree_rich(sections: list[dict]) -> None:
+    """Recursively render a hierarchical section tree with Rich Markdown.
+
+    Args:
+        sections: List of section dicts (may include ``subsections`` and ``tables``).
+    """
+    for section in sections:
+        title = section.get("title", "")
+        content = section.get("content", "")
+        level = section.get("level", 2)
+        tables = section.get("tables", [])
+        subsections = section.get("subsections", [])
+
+        md_parts: list[str] = []
+        if title:
+            md_parts.append(f"{'#' * level} {title}")
+            md_parts.append("")
+        if content:
+            md_parts.append(content)
+        if md_parts:
+            console.print(Markdown("\n".join(md_parts)))
+            console.print()
+
+        for table in tables:
+            console.print(_table_to_rich(table))
+            console.print()
+
+        _render_section_tree_rich(subsections)
+
+
+# ---------------------------------------------------------------------------
+# Public rendering functions
+# ---------------------------------------------------------------------------
+
+
 def render_article(data: dict, *, raw: bool = False) -> None:
     """Render a Wikipedia article to the terminal.
 
@@ -60,52 +215,6 @@ def render_article(data: dict, *, raw: bool = False) -> None:
 
     if page_url:
         console.print(Markdown(f"*Source: <{page_url}>*"))
-
-
-def _render_section_tree_raw(sections: list[dict]) -> None:
-    """Recursively render a hierarchical section tree as plain text.
-
-    Args:
-        sections: List of section dicts (may include ``subsections``).
-    """
-    for section in sections:
-        title = section.get("title", "")
-        content = section.get("content", "")
-        level = section.get("level", 2)
-        subsections = section.get("subsections", [])
-
-        if title:
-            print(f"{'#' * level} {title}")
-            print()
-        if content:
-            print(content)
-            print()
-        _render_section_tree_raw(subsections)
-
-
-def _render_section_tree_rich(sections: list[dict]) -> None:
-    """Recursively render a hierarchical section tree with Rich Markdown.
-
-    Args:
-        sections: List of section dicts (may include ``subsections``).
-    """
-    for section in sections:
-        title = section.get("title", "")
-        content = section.get("content", "")
-        level = section.get("level", 2)
-        subsections = section.get("subsections", [])
-
-        md_parts: list[str] = []
-        if title:
-            md_parts.append(f"{'#' * level} {title}")
-            md_parts.append("")
-        if content:
-            md_parts.append(content)
-        if md_parts:
-            console.print(Markdown("\n".join(md_parts)))
-            console.print()
-
-        _render_section_tree_rich(subsections)
 
 
 def render_search_results(results: list[dict], query: str) -> None:
@@ -171,6 +280,9 @@ def render_sections(
 ) -> None:
     """Render the content of one or more article sections.
 
+    Tables embedded in each section are rendered as Markdown (``--raw`` mode)
+    or as Rich tables (Rich mode).
+
     Args:
         sections: Flat list of section dicts to display.
         raw:      When *True*, emit plain text instead of Rich markup.
@@ -184,6 +296,7 @@ def render_sections(
         title = section.get("title", "")
         content = section.get("content", "")
         level = section.get("level", 2)
+        tables = section.get("tables", [])
 
         if raw:
             if title:
@@ -192,6 +305,11 @@ def render_sections(
             if content:
                 print(content)
                 print()
+            for table in tables:
+                md = _table_to_markdown(table)
+                if md:
+                    print(md)
+                    print()
         else:
             md_parts: list[str] = []
             if title:
@@ -201,6 +319,9 @@ def render_sections(
                 md_parts.append(content)
             if md_parts:
                 console.print(Markdown("\n".join(md_parts)))
+                console.print()
+            for table in tables:
+                console.print(_table_to_rich(table))
                 console.print()
 
     if page_url:
