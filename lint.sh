@@ -1,23 +1,16 @@
 #!/usr/bin/env bash
-# Linting script for the wiki project
+# Linting script for the wiki-cli project
 
 set -euo pipefail
 
-echo "Running shellcheck on bash scripts..."
-shellcheck wiki
-echo "✓ Shellcheck passed"
+echo "Running ruff on Python code..."
+ruff check wiki_cli/ tests/
+echo "✓ Ruff check passed"
 
 echo ""
-echo "Checking if prettier is installed..."
-if command -v prettier >/dev/null 2>&1; then
-  echo "Running prettier on Markdown..."
-  prettier --check README.md
-  echo "✓ Prettier check passed"
-else
-  echo "⚠ prettier not installed. To check Markdown formatting:"
-  echo "  npm install -g prettier"
-  echo "  prettier --check README.md"
-fi
+echo "Checking ruff format..."
+ruff format --check wiki_cli/ tests/
+echo "✓ Ruff format check passed"
 
 echo ""
 echo "All linting checks passed!"

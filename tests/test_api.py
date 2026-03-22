@@ -14,9 +14,7 @@ SAMPLE_SUMMARY = {
     "extract": (
         "A Unix shell is a command-line interpreter that provides a user interface."
     ),
-    "content_urls": {
-        "desktop": {"page": "https://en.wikipedia.org/wiki/Unix_shell"}
-    },
+    "content_urls": {"desktop": {"page": "https://en.wikipedia.org/wiki/Unix_shell"}},
 }
 
 SAMPLE_SEARCH_RESPONSE = {
@@ -397,7 +395,7 @@ class TestParseSections:
     def test_structure(self) -> None:
         sections = api._parse_sections(SAMPLE_HTML)
         by_title = {s["title"]: s for s in sections}
-        assert "" in by_title                          # lead
+        assert "" in by_title  # lead
         assert by_title[""]["level"] == 0
         assert by_title["History"]["level"] == 2
         assert by_title["Early shells"]["level"] == 3
@@ -509,9 +507,9 @@ class TestFilterSections:
     @pytest.mark.parametrize(
         "query,expected_title",
         [
-            ("History", "History"),           # exact match
-            ("history", "History"),           # case-insensitive
-            ("hist", "History"),              # fuzzy substring
+            ("History", "History"),  # exact match
+            ("history", "History"),  # case-insensitive
+            ("hist", "History"),  # fuzzy substring
         ],
     )
     def test_matching(self, query: str, expected_title: str) -> None:

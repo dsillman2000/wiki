@@ -44,9 +44,7 @@ SAMPLE_DATA = {
             ],
         }
     ],
-    "content_urls": {
-        "desktop": {"page": "https://en.wikipedia.org/wiki/Unix_shell"}
-    },
+    "content_urls": {"desktop": {"page": "https://en.wikipedia.org/wiki/Unix_shell"}},
 }
 
 SAMPLE_SECTIONS = [
@@ -100,9 +98,7 @@ ARTICLE_WITH_TABLE = {
             "subsections": [],
         }
     ],
-    "content_urls": {
-        "desktop": {"page": "https://en.wikipedia.org/wiki/Sam_Seder"}
-    },
+    "content_urls": {"desktop": {"page": "https://en.wikipedia.org/wiki/Sam_Seder"}},
 }
 
 
