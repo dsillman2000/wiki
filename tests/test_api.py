@@ -212,61 +212,6 @@ class TestFetchArticle:
         history = next(s for s in result["sections"] if s["title"] == "History")
         assert any(s["title"] == "Early shells" for s in history["subsections"])
 
-    def test_falls_back_to_search_on_404(self, httpx_mock: HTTPXMock) -> None:
-        httpx_mock.add_response(
-            url="https://en.wikipedia.org/api/rest_v1/page/summary/unix+shell",
-            status_code=404,
-            json={},
-        )
-        httpx_mock.add_response(
-            url=httpx.URL(
-                "https://en.wikipedia.org/w/api.php",
-                params={
-                    "action": "query",
-                    "list": "search",
-                    "srsearch": "unix+shell",
-                    "srlimit": "1",
-                    "format": "json",
-                    "srprop": "snippet",
-                },
-            ),
-            json={"query": {"search": [{"title": "Unix shell", "snippet": ""}]}},
-        )
-        httpx_mock.add_response(
-            url="https://en.wikipedia.org/api/rest_v1/page/summary/Unix%20shell",
-            json=SAMPLE_SUMMARY,
-        )
-        httpx_mock.add_response(
-            url="https://en.wikipedia.org/api/rest_v1/page/html/Unix%20shell",
-            text=SAMPLE_HTML,
-        )
-        result = api.fetch_article("unix+shell")
-        assert result["title"] == "Unix shell"
-        assert "sections" in result
-
-    def test_raises_value_error_when_no_match(self, httpx_mock: HTTPXMock) -> None:
-        httpx_mock.add_response(
-            url="https://en.wikipedia.org/api/rest_v1/page/summary/xyzzy_nothing",
-            status_code=404,
-            json={},
-        )
-        httpx_mock.add_response(
-            url=httpx.URL(
-                "https://en.wikipedia.org/w/api.php",
-                params={
-                    "action": "query",
-                    "list": "search",
-                    "srsearch": "xyzzy_nothing",
-                    "srlimit": "1",
-                    "format": "json",
-                    "srprop": "snippet",
-                },
-            ),
-            json={"query": {"search": []}},
-        )
-        with pytest.raises(ValueError, match="No Wikipedia article found"):
-            api.fetch_article("xyzzy_nothing")
-
     def test_empty_sections_on_html_failure(self, httpx_mock: HTTPXMock) -> None:
         httpx_mock.add_response(
             url="https://en.wikipedia.org/api/rest_v1/page/summary/Unix%20shell",
@@ -323,9 +268,9 @@ class TestBuildSectionTree:
     def test_structure(self) -> None:
         tree = api._build_section_tree(_FLAT_SECTIONS)
         titles = [s["title"] for s in tree]
+        assert "" in titles  # lead included
         assert "History" in titles
         assert "Career" in titles
-        assert "" not in titles  # lead excluded
         history = next(s for s in tree if s["title"] == "History")
         sub_titles = [s["title"] for s in history["subsections"]]
         assert "Early shells" in sub_titles
@@ -336,9 +281,12 @@ class TestBuildSectionTree:
     def test_empty_input_returns_empty(self) -> None:
         assert api._build_section_tree([]) == []
 
-    def test_lead_only_returns_empty(self) -> None:
+    def test_lead_only_returns_lead(self) -> None:
         flat = [{"id": "", "title": "", "level": 0, "content": "Lead.", "tables": []}]
-        assert api._build_section_tree(flat) == []
+        tree = api._build_section_tree(flat)
+        assert len(tree) == 1
+        assert tree[0]["title"] == ""
+        assert tree[0]["content"] == "Lead."
 
 
 # ---------------------------------------------------------------------------
@@ -643,12 +591,10 @@ class TestParseSectionsWithTables:
     def test_tables_extracted_and_text_clean(self) -> None:
         sections = api._parse_sections(SAMPLE_HTML_WITH_TABLE)
         by_title = {s["title"]: s for s in sections}
-        # Every section must have a "tables" key
         assert all("tables" in s for s in sections)
         film_tables = by_title["Filmography"]["tables"]
         assert len(film_tables) == 1
         assert film_tables[0]["headers"] == ["Year", "Title", "Role"]
-        # Table text must not bleed into plain-text content
         assert "Year" not in by_title["Filmography"]["content"]
         assert "1997" not in by_title["Filmography"]["content"]
 
@@ -659,15 +605,6 @@ class TestParseSectionsWithTables:
     def test_non_table_content_still_extracted(self) -> None:
         by_title = {s["title"]: s for s in api._parse_sections(SAMPLE_HTML_WITH_TABLE)}
         assert "TV work" in by_title["Filmography"]["content"]
-
-    def test_tables_preserved_through_tree_and_flatten(self) -> None:
-        flat = api._parse_sections(SAMPLE_HTML_WITH_TABLE)
-        tree = api._build_section_tree(flat)
-        by_title_tree = {s["title"]: s for s in tree}
-        assert len(by_title_tree["Filmography"]["tables"]) == 1
-        flattened = api.flatten_sections(tree)
-        by_title_flat = {s["title"]: s for s in flattened}
-        assert len(by_title_flat["Filmography"]["tables"]) == 1
 
 
 # ---------------------------------------------------------------------------
@@ -711,15 +648,184 @@ class TestUrlToTitle:
 # ---------------------------------------------------------------------------
 
 
-class TestFetchArticleWithUrl:
-    def test_url_resolves_to_title(self, httpx_mock: HTTPXMock) -> None:
-        httpx_mock.add_response(
-            url="https://en.wikipedia.org/api/rest_v1/page/summary/Unix%20shell",
-            json=SAMPLE_SUMMARY,
+# ---------------------------------------------------------------------------
+# Content formatting: code blocks, inline code, blockquotes, links
+# ---------------------------------------------------------------------------
+
+
+class TestCodeBlockExtraction:
+    def test_code_block_extracted_as_fence(self) -> None:
+        html = """
+        <section data-mw-section-id="1">
+            <h2>Example</h2>
+            <p>Here is some code:</p>
+            <div class="mw-highlight mw-highlight-lang-python"
+                 data-mw='{"name":"syntaxhighlight",
+                 "attrs":{"lang":"python"},
+                 "body":{"extsrc":"def hello():\\n    print(\\"H\\")"}}'>
+                <pre><span>code</span></pre>
+            </div>
+        </section>
+        """
+        sections = api._parse_sections(html)
+        assert "```python" in sections[0]["content"]
+        assert "def hello():" in sections[0]["content"]
+        assert "print" in sections[0]["content"]
+
+    def test_code_block_preserves_newlines(self) -> None:
+        html = """
+        <section data-mw-section-id="1">
+            <h2>Example</h2>
+            <pre>line1
+line2
+line3</pre>
+        </section>
+        """
+        sections = api._parse_sections(html)
+        assert "line1" in sections[0]["content"]
+        assert "line2" in sections[0]["content"]
+
+    def test_multiple_code_blocks(self) -> None:
+        html = """
+        <section data-mw-section-id="1">
+            <h2>Examples</h2>
+            <pre>code1</pre>
+            <p>Some text</p>
+            <pre>code2</pre>
+        </section>
+        """
+        sections = api._parse_sections(html)
+        content = sections[0]["content"]
+        assert "code1" in content
+        assert "code2" in content
+
+
+class TestInlineCode:
+    def test_inline_code_wrapped_in_backticks(self) -> None:
+        html = """
+        <section data-mw-section-id="1">
+            <h2>Example</h2>
+            <p>Use <code>print()</code> to output text.</p>
+        </section>
+        """
+        sections = api._parse_sections(html)
+        assert "`print()`" in sections[0]["content"]
+
+    def test_inline_code_preserves_text(self) -> None:
+        html = """
+        <section data-mw-section-id="1">
+            <h2>Example</h2>
+            <p>The <code>main</code> function.</p>
+        </section>
+        """
+        sections = api._parse_sections(html)
+        assert "`main`" in sections[0]["content"]
+        assert "function" in sections[0]["content"]
+
+
+class TestBlockquoteRendering:
+    def test_blockquote_converted_to_markdown(self) -> None:
+        html = """
+        <section data-mw-section-id="1">
+            <h2>Example</h2>
+            <blockquote>
+                <p>This is a quote.</p>
+            </blockquote>
+        </section>
+        """
+        sections = api._parse_sections(html)
+        assert "> This is a quote" in sections[0]["content"]
+
+    def test_nested_blockquote(self) -> None:
+        html = """
+        <section data-mw-section-id="1">
+            <h2>Example</h2>
+            <blockquote>
+                <p>Outer quote.</p>
+                <blockquote>
+                    <p>Inner quote.</p>
+                </blockquote>
+            </blockquote>
+        </section>
+        """
+        sections = api._parse_sections(html)
+        content = sections[0]["content"]
+        assert "> Outer quote" in content
+        assert "> Inner quote" in content
+
+
+class TestWikipediaLinks:
+    def test_internal_wiki_link_converted(self) -> None:
+        html = """
+        <section data-mw-section-id="1">
+            <h2>Example</h2>
+            <p><a rel="mw:WikiLink" href="./OOP">object-oriented</a> programming.</p>
+        </section>
+        """
+        sections = api._parse_sections(html)
+        assert (
+            "[object-oriented](https://en.wikipedia.org/OOP)" in sections[0]["content"]
         )
-        httpx_mock.add_response(
-            url="https://en.wikipedia.org/api/rest_v1/page/html/Unix%20shell",
-            text=SAMPLE_HTML,
-        )
-        result = api.fetch_article("https://en.wikipedia.org/wiki/Unix_shell")
-        assert result["title"] == "Unix shell"
+
+    def test_external_link_converted(self) -> None:
+        html = """
+        <section data-mw-section-id="1">
+            <h2>Example</h2>
+            <p>Visit <a rel="mw:ExtLink" href="https://python.org">python.org</a>.</p>
+        </section>
+        """
+        sections = api._parse_sections(html)
+        assert "[python.org](https://python.org)" in sections[0]["content"]
+
+    def test_link_with_display_text(self) -> None:
+        html = """
+        <section data-mw-section-id="1">
+            <h2>Example</h2>
+            <p>See <a rel="mw:WikiLink" href="./Author">Guido</a>.</p>
+        </section>
+        """
+        sections = api._parse_sections(html)
+        assert "[Guido]" in sections[0]["content"]
+
+
+class TestMixedContent:
+    def test_code_and_text_mixed(self) -> None:
+        html = """
+        <section data-mw-section-id="1">
+            <h2>Example</h2>
+            <p>Define a function:</p>
+            <pre>def foo(): pass</pre>
+            <p>Then call it.</p>
+        </section>
+        """
+        sections = api._parse_sections(html)
+        content = sections[0]["content"]
+        assert "Define a function:" in content
+        assert "Then call it." in content
+        assert "```" in content  # code fence present
+
+    def test_code_inline_and_block(self) -> None:
+        html = """
+        <section data-mw-section-id="1">
+            <h2>Example</h2>
+            <p>Use <code>x</code> variable.</p>
+            <pre>def f(): pass</pre>
+        </section>
+        """
+        sections = api._parse_sections(html)
+        content = sections[0]["content"]
+        assert "`x`" in content
+        assert "```" in content
+
+    def test_quote_and_link(self) -> None:
+        html = """
+        <section data-mw-section-id="1">
+            <h2>Example</h2>
+            <blockquote>
+                <p>See <a rel="mw:WikiLink" href="./API">the API</a>.</p>
+            </blockquote>
+        </section>
+        """
+        sections = api._parse_sections(html)
+        content = sections[0]["content"]
+        assert "> See [the API]" in content

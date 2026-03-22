@@ -175,34 +175,44 @@ def fetch_article(query: str) -> dict:
 def _build_section_tree(flat_sections: list[dict]) -> list[dict]:
     """Build a hierarchical section tree from a flat section list.
 
-    The lead section (empty title) is excluded.  Each node in the tree
-    contains ``id``, ``title``, ``level``, ``content``, and ``subsections``.
+    The lead section (empty title) is included as the first item with level 1.
+    Each node in the tree contains ``id``, ``title``, ``level``, ``content``,
+    and ``subsections``.
 
     Args:
         flat_sections: Flat list as returned by :func:`_parse_sections`.
 
     Returns:
         List of top-level section dicts; sub-sections are nested under
-        their parent's ``subsections`` key.
+        their parent's ``subsections`` key. The lead section is first.
     """
     tree: list[dict] = []
-    # ancestors tracks the chain of open parent nodes (most recent last)
     ancestors: list[dict] = []
 
     for s in flat_sections:
-        if not s.get("title"):
-            continue  # skip lead section
+        title = s.get("title", "")
+        if not title:
+            tree.append(
+                {
+                    "id": s.get("id", ""),
+                    "title": title,
+                    "level": 1,
+                    "content": s["content"],
+                    "tables": s.get("tables", []),
+                    "subsections": [],
+                }
+            )
+            continue
 
         node: dict = {
             "id": s.get("id", ""),
-            "title": s["title"],
+            "title": title,
             "level": s["level"],
             "content": s["content"],
             "tables": s.get("tables", []),
             "subsections": [],
         }
 
-        # Pop ancestors that are at the same level or deeper (not parents)
         while ancestors and ancestors[-1]["level"] >= node["level"]:
             ancestors.pop()
 
@@ -375,16 +385,145 @@ def _parse_sections(html_content: str) -> list[dict]:
     for span in soup.find_all("span", class_="mw-editsection"):
         span.decompose()
 
+    def _extract_code_blocks(soup: BeautifulSoup) -> list[tuple[str, str]]:
+        """Extract code blocks and return list of (placeholder, code_fence) tuples.
+
+        Returns:
+            List of (placeholder_marker, markdown_code_fence) tuples for replacement.
+        """
+        code_blocks: list[tuple[str, str]] = []
+
+        for idx, pre in enumerate(soup.find_all("pre")):
+            parent = pre.parent
+            is_inline = parent and parent.name == "code" if parent else False
+            if is_inline:
+                continue
+
+            highlight_div = pre.find_parent("div", class_="mw-highlight")
+            lang = "text"
+            if highlight_div:
+                for cls in highlight_div.get("class", []):
+                    if cls.startswith("mw-highlight-lang-"):
+                        lang = cls.replace("mw-highlight-lang-", "")
+                        break
+                    elif cls.startswith("mw-highlight-lang"):
+                        parts = cls.split("-")
+                        if len(parts) >= 3:
+                            lang = parts[2]
+                            break
+
+            data_mw = highlight_div.get("data-mw", "") if highlight_div else ""
+            code = ""
+            if data_mw:
+                try:
+                    import json
+
+                    mw_data = json.loads(data_mw)
+                    body = mw_data.get("body", {})
+                    extsrc = body.get("extsrc", "")
+                    if extsrc:
+                        code = extsrc.strip()
+                except (json.JSONDecodeError, KeyError):
+                    code = pre.get_text()
+            else:
+                code = pre.get_text()
+
+            marker = f"[[CODEBLOCK:{idx}]]"
+            fence = f"\n```{lang}\n{code}\n```\n"
+            code_blocks.append((marker, fence))
+            pre.insert_before(soup.new_string(marker))
+            pre.decompose()
+            if highlight_div:
+                highlight_div.decompose()
+
+        return code_blocks
+
+    def _html_to_markdown(soup: BeautifulSoup) -> str:
+        """Convert HTML elements to Markdown-like text with proper formatting.
+
+        Handles:
+        - Blockquotes: converts to > prefixed lines
+        - Code blocks: already extracted by _extract_code_blocks
+        - Inline code: wraps in backticks
+        - Wikipedia links: converts to [text](url) format
+        """
+
+        def process_element(element: Tag) -> str:
+            text_parts: list[str] = []
+
+            for child in element.children:
+                if isinstance(child, str):
+                    text_parts.append(child.string)
+                elif isinstance(child, Tag):
+                    tag_name = child.name.lower()
+
+                    if tag_name == "blockquote":
+                        inner = process_element(child).strip()
+                        for line in inner.split("\n"):
+                            text_parts.append(f"> {line}")
+                        text_parts.append("")
+                    elif tag_name == "code" and not child.find_parent("pre"):
+                        code_text = child.get_text()
+                        text_parts.append(f"`{code_text}`")
+                    elif tag_name == "br":
+                        text_parts.append("\n")
+                    elif tag_name == "p":
+                        inner = process_element(child).strip()
+                        if inner:
+                            text_parts.append(inner)
+                            text_parts.append("")
+                    elif tag_name == "a":
+                        rel = child.get("rel", [])
+                        href = child.get("href", "")
+                        text = child.get_text()
+
+                        if isinstance(rel, str):
+                            rel = rel.split()
+
+                        if "mw:WikiLink" in rel:
+                            if href.startswith("./"):
+                                href = href[2:]
+                            if not href.startswith("http"):
+                                href = f"https://en.wikipedia.org/{href}"
+                            text_parts.append(f"[{text}]({href})")
+                        elif "mw:ExtLink" in rel or child.get("class") == ["external"]:
+                            text_parts.append(f"[{text}]({href})")
+                        else:
+                            text_parts.append(text)
+                    elif tag_name in ("b", "strong"):
+                        inner = process_element(child)
+                        text_parts.append(inner)
+                    elif tag_name in ("i", "em"):
+                        inner = process_element(child)
+                        text_parts.append(f"*{inner}*")
+                    else:
+                        inner = process_element(child)
+                        text_parts.append(inner)
+
+            return "".join(text_parts)
+
+        text = process_element(soup)
+        text = re.sub(r"\n{3,}", "\n\n", text)
+        return text.strip()
+
     def _make_entry(section_id: str, title: str, level: int, html: str) -> dict:
         """Build a section entry dict from raw HTML content."""
-        # Parse once; _parse_tables decomposes nested tables inside cells but
-        # leaves the wikitables themselves intact, so we can still remove them
-        # afterward for plain-text extraction.
         entry_soup = BeautifulSoup(html, "html.parser")
         tables = _parse_tables(entry_soup)
         for tbl in entry_soup.find_all("table"):
             tbl.decompose()
-        content = re.sub(r"\s+", " ", entry_soup.get_text(separator=" ")).strip()
+
+        code_blocks = _extract_code_blocks(entry_soup)
+
+        for marker, fence in code_blocks:
+            entry_soup.append(entry_soup.new_string(marker))
+
+        content = _html_to_markdown(entry_soup)
+
+        for marker, fence in code_blocks:
+            content = content.replace(marker, fence)
+
+        content = re.sub(r"\n{3,}", "\n\n", content).strip()
         return {
             "id": section_id,
             "title": title,

@@ -16,10 +16,7 @@ console = Console()
 
 
 def _table_ncols(table: dict) -> int:
-    """Return the number of columns for *table*.
-
-    Derived from the header count, falling back to the first data row, then 0.
-    """
+    """Return the number of columns for *table*."""
     headers = table.get("headers", [])
     rows = table.get("rows", [])
     if headers:
@@ -28,14 +25,7 @@ def _table_ncols(table: dict) -> int:
 
 
 def _table_to_markdown(table: dict) -> str:
-    """Convert a table dict to a GitHub Flavored Markdown table string.
-
-    Args:
-        table: Dict with ``caption``, ``headers``, and ``rows`` keys.
-
-    Returns:
-        Multi-line Markdown string, or empty string if the table has no data.
-    """
+    """Convert a table dict to a GitHub Flavored Markdown table string."""
     headers = table.get("headers", [])
     rows = table.get("rows", [])
     caption = table.get("caption", "")
@@ -63,14 +53,7 @@ def _table_to_markdown(table: dict) -> str:
 
 
 def _table_to_rich(table: dict) -> Table:
-    """Convert a table dict to a Rich :class:`~rich.table.Table` object.
-
-    Args:
-        table: Dict with ``caption``, ``headers``, and ``rows`` keys.
-
-    Returns:
-        A Rich Table ready for printing.
-    """
+    """Convert a table dict to a Rich Table object."""
     headers = table.get("headers", [])
     rows = table.get("rows", [])
     caption = table.get("caption", "") or None
@@ -131,11 +114,7 @@ def _render_section_tree_raw(sections: list[dict]) -> None:
 
 
 def _render_section_tree_rich(sections: list[dict]) -> None:
-    """Recursively render a hierarchical section tree with Rich Markdown.
-
-    Args:
-        sections: List of section dicts (may include ``subsections`` and ``tables``).
-    """
+    """Recursively render a hierarchical section tree with Rich Markdown."""
     for section in sections:
         title = section.get("title", "")
         content = section.get("content", "")
@@ -149,6 +128,7 @@ def _render_section_tree_rich(sections: list[dict]) -> None:
             md_parts.append("")
         if content:
             md_parts.append(content)
+
         if md_parts:
             console.print(Markdown("\n".join(md_parts)))
             console.print()
