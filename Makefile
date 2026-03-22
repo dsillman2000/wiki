@@ -93,7 +93,3 @@ clean: ## Remove build artifacts and caches
 	rm -rf .pytest_cache __pycache__ wiki_cli/__pycache__ tests/__pycache__
 	rm -rf .ruff_cache
 	@echo "$(GREEN)✓ Cleanup complete$(NC)"
-
-check-deps: ## Check if required dependencies are installed
-	@echo "$(BLUE)Checking dependencies...$(NC)"
-	wiki --check
