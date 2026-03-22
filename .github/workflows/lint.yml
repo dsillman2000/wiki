@@ -27,7 +27,7 @@ jobs:
         run: pip install uv
 
       - name: Install dependencies
-        run: uv sync
+        run: uv sync --dev
 
       - name: Install shellcheck
         run: sudo apt-get update && sudo apt-get install -y shellcheck
