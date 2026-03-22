@@ -41,8 +41,9 @@ COPY wiki /usr/local/bin/
 RUN chmod +x /usr/local/bin/wiki
 
 # Create non-root user for security best practices
-RUN groupadd -g 1000 wiki && \
-    useradd -m -u 1000 -g wiki wiki
+# Using UID 1001 to avoid potential conflicts with host user IDs
+RUN groupadd -g 1001 wiki && \
+    useradd -m -u 1001 -g wiki wiki
 
 USER wiki
 WORKDIR /home/wiki
