@@ -23,26 +23,23 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Install ruff
-        run: pip install ruff
+      - name: Install uv
+        run: pip install uv
 
-      - name: Run ruff on Python source
-        run: ruff check wiki_client/ tests/
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20.x"
-          cache: "npm"
-
-      - name: Install Node dependencies
-        run: npm ci
+      - name: Install dependencies
+        run: uv sync
 
       - name: Install shellcheck
         run: sudo apt-get update && sudo apt-get install -y shellcheck
 
-      - name: Run shellcheck on shell scripts
-        run: shellcheck install.sh uninstall.sh lint.sh
+      - name: Run ruff
+        run: ruff check wiki_client/ tests/
+
+      - name: Run ruff format check
+        run: ruff format --check wiki_client/ tests/
 
       - name: Run prettier check
         run: npx prettier --check "**/*.md"
+
+      - name: Run shellcheck
+        run: shellcheck install.sh lint.sh uninstall.sh
