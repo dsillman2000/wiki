@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import html as _html_module
 import re
+from urllib.parse import unquote, urlparse
 
 import httpx
 
@@ -28,6 +29,36 @@ _TH_RE = re.compile(r"<th\b[^>]*>(.*?)</th>", re.DOTALL | re.IGNORECASE)
 _TD_RE = re.compile(r"<td\b[^>]*>(.*?)</td>", re.DOTALL | re.IGNORECASE)
 _HEADING_RE = re.compile(r"<(h[1-6])[^>]*>(.*?)</\1>", re.DOTALL | re.IGNORECASE)
 _HEADING_ID_RE = re.compile(r'\bid="([^"]*)"', re.IGNORECASE)
+
+
+def _url_to_title(query: str) -> str | None:
+    """Extract an article title from a Wikipedia URL.
+
+    Supports URLs of the form
+    ``https://en.wikipedia.org/wiki/Article_Title``.
+
+    Args:
+        query: Arbitrary string that may or may not be a Wikipedia URL.
+
+    Returns:
+        The decoded article title (underscores replaced with spaces), or
+        *None* if *query* is not a recognisable Wikipedia wiki URL.
+    """
+    try:
+        parsed = urlparse(query)
+    except ValueError:
+        return None
+    if parsed.scheme not in ("http", "https"):
+        return None
+    if "wikipedia.org" not in (parsed.netloc or ""):
+        return None
+    path = parsed.path or ""
+    if not path.startswith("/wiki/"):
+        return None
+    raw_title = path.removeprefix("/wiki/")
+    if not raw_title:
+        return None
+    return unquote(raw_title).replace("_", " ")
 
 
 def get_summary(title: str) -> dict:
@@ -125,6 +156,11 @@ def fetch_article(query: str) -> dict:
         httpx.RequestError: On network failures.
         ValueError: If no articles match the query.
     """
+    # Resolve Wikipedia URLs to article titles transparently
+    title_from_url = _url_to_title(query)
+    if title_from_url:
+        query = title_from_url
+
     # Step 1: get summary for metadata (title, description, urls)
     try:
         summary = get_summary(query)
@@ -403,6 +439,11 @@ def get_sections(query: str) -> list[dict]:
         httpx.RequestError: On network failures.
         ValueError: If no articles match the query.
     """
+    # Resolve Wikipedia URLs to article titles transparently
+    title_from_url = _url_to_title(query)
+    if title_from_url:
+        query = title_from_url
+
     try:
         html = _fetch_html(query)
     except httpx.HTTPStatusError as exc:

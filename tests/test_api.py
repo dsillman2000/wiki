@@ -708,3 +708,72 @@ class TestStripAllTables:
     def test_no_table_unchanged(self) -> None:
         html = "<p>No table here.</p>"
         assert api._strip_all_tables(html) == html
+
+
+class TestUrlToTitle:
+    def test_en_wikipedia_url(self) -> None:
+        result = api._url_to_title("https://en.wikipedia.org/wiki/Unix_shell")
+        assert result == "Unix shell"
+
+    def test_url_with_spaces_encoded(self) -> None:
+        result = api._url_to_title("https://en.wikipedia.org/wiki/Sam%20Seder")
+        assert result == "Sam Seder"
+
+    def test_url_underscore_to_space(self) -> None:
+        result = api._url_to_title(
+            "https://en.wikipedia.org/wiki/Bash_(Unix_shell)"
+        )
+        assert result == "Bash (Unix shell)"
+
+    def test_http_url(self) -> None:
+        url = "http://en.wikipedia.org/wiki/Python_(programming_language)"
+        assert api._url_to_title(url) == "Python (programming language)"
+
+    def test_non_wiki_path_returns_none(self) -> None:
+        url = "https://en.wikipedia.org/w/index.php?title=Unix"
+        assert api._url_to_title(url) is None
+
+    def test_non_wikipedia_domain_returns_none(self) -> None:
+        assert api._url_to_title("https://example.com/wiki/Unix_shell") is None
+
+    def test_plain_text_returns_none(self) -> None:
+        assert api._url_to_title("Unix shell") is None
+
+    def test_empty_string_returns_none(self) -> None:
+        assert api._url_to_title("") is None
+
+    def test_empty_article_path_returns_none(self) -> None:
+        assert api._url_to_title("https://en.wikipedia.org/wiki/") is None
+
+    def test_different_language_wikipedia(self) -> None:
+        assert api._url_to_title("https://fr.wikipedia.org/wiki/Unix") == "Unix"
+
+
+class TestFetchArticleWithUrl:
+    def test_url_resolves_to_title(self, httpx_mock: HTTPXMock) -> None:
+        httpx_mock.add_response(
+            url=(
+                "https://en.wikipedia.org/api/rest_v1/page/summary/Unix%20shell"
+            ),
+            json=SAMPLE_SUMMARY,
+        )
+        httpx_mock.add_response(
+            url="https://en.wikipedia.org/api/rest_v1/page/html/Unix%20shell",
+            text=SAMPLE_HTML,
+        )
+        result = api.fetch_article("https://en.wikipedia.org/wiki/Unix_shell")
+        assert result["title"] == "Unix shell"
+
+    def test_url_with_underscores(self, httpx_mock: HTTPXMock) -> None:
+        httpx_mock.add_response(
+            url=(
+                "https://en.wikipedia.org/api/rest_v1/page/summary/Unix%20shell"
+            ),
+            json=SAMPLE_SUMMARY,
+        )
+        httpx_mock.add_response(
+            url="https://en.wikipedia.org/api/rest_v1/page/html/Unix%20shell",
+            text=SAMPLE_HTML,
+        )
+        result = api.fetch_article("https://en.wikipedia.org/wiki/Unix_shell")
+        assert result["title"] == "Unix shell"
