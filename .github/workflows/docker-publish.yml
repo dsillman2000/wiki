@@ -67,7 +67,7 @@ jobs:
         run: |
           docker build -t wiki:test .
           docker run --rm wiki:test "Bash" | head -20
-          docker run --rm wiki:test -ls "Unix shell" | head -15
+          docker run --rm wiki:test --ls "Unix shell" | head -15
 
       - name: Image size info
         run: |
