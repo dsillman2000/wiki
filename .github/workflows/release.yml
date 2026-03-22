@@ -9,6 +9,8 @@ on:
 jobs:
   get-version:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     outputs:
       version: ${{ steps.gitversion.outputs.semVer }}
     steps:
