@@ -34,6 +34,23 @@ SAMPLE_SEARCH_RESPONSE = {
     }
 }
 
+# Minimal Wikipedia-like HTML with lead section + two sections
+SAMPLE_HTML = """
+<html><body>
+<section data-mw-section-id="0">
+  <p>The Unix shell is a command-line interface.</p>
+</section>
+<section data-mw-section-id="1">
+  <h2>History</h2>
+  <p>The Unix shell was developed in the 1970s.</p>
+</section>
+<section data-mw-section-id="2">
+  <h3>Early shells</h3>
+  <p>The Thompson shell was one of the first Unix shells.</p>
+</section>
+</body></html>
+"""
+
 
 class TestGetSummary:
     def test_returns_parsed_json(self, httpx_mock: HTTPXMock) -> None:
@@ -184,6 +201,152 @@ class TestFetchArticle:
         )
         with pytest.raises(ValueError, match="No Wikipedia article found"):
             api.fetch_article("xyzzy_nothing")
+
+
+class TestParseSections:
+    def test_lead_plus_sections(self) -> None:
+        sections = api._parse_sections(SAMPLE_HTML)
+        titles = [s["title"] for s in sections]
+        assert "" in titles  # lead section
+        assert "History" in titles
+        assert "Early shells" in titles
+
+    def test_lead_section_has_empty_title(self) -> None:
+        sections = api._parse_sections(SAMPLE_HTML)
+        assert sections[0]["title"] == ""
+        assert sections[0]["level"] == 0
+
+    def test_section_levels_are_correct(self) -> None:
+        sections = api._parse_sections(SAMPLE_HTML)
+        by_title = {s["title"]: s for s in sections}
+        assert by_title["History"]["level"] == 2
+        assert by_title["Early shells"]["level"] == 3
+
+    def test_content_extracted(self) -> None:
+        sections = api._parse_sections(SAMPLE_HTML)
+        by_title = {s["title"]: s for s in sections}
+        assert "1970s" in by_title["History"]["content"]
+        assert "Thompson" in by_title["Early shells"]["content"]
+
+    def test_html_entities_decoded(self) -> None:
+        html = "<h2>Bourne &amp; C shells</h2><p>Text here.</p>"
+        sections = api._parse_sections(html)
+        assert sections[0]["title"] == "Bourne & C shells"
+
+    def test_sup_tags_stripped(self) -> None:
+        html = "<h2>History</h2><p>Text<sup>[1]</sup> here.</p>"
+        sections = api._parse_sections(html)
+        assert "[1]" not in sections[0]["content"]
+
+    def test_empty_html_returns_empty_list(self) -> None:
+        assert api._parse_sections("") == []
+
+    def test_no_headings_returns_lead_only(self) -> None:
+        html = "<p>Just a paragraph.</p>"
+        sections = api._parse_sections(html)
+        assert len(sections) == 1
+        assert sections[0]["title"] == ""
+        assert "paragraph" in sections[0]["content"]
+
+
+class TestGetSections:
+    def test_returns_sections_list(self, httpx_mock: HTTPXMock) -> None:
+        httpx_mock.add_response(
+            url="https://en.wikipedia.org/api/rest_v1/page/html/Unix%20shell",
+            text=SAMPLE_HTML,
+        )
+        sections = api.get_sections("Unix%20shell")
+        titles = [s["title"] for s in sections]
+        assert "History" in titles
+
+    def test_falls_back_to_search_on_404(self, httpx_mock: HTTPXMock) -> None:
+        httpx_mock.add_response(
+            url="https://en.wikipedia.org/api/rest_v1/page/html/unix+shell",
+            status_code=404,
+            json={},
+        )
+        httpx_mock.add_response(
+            url=httpx.URL(
+                "https://en.wikipedia.org/w/api.php",
+                params={
+                    "action": "query",
+                    "list": "search",
+                    "srsearch": "unix+shell",
+                    "srlimit": "1",
+                    "format": "json",
+                    "srprop": "snippet",
+                },
+            ),
+            json={"query": {"search": [{"title": "Unix shell", "snippet": ""}]}},
+        )
+        httpx_mock.add_response(
+            url="https://en.wikipedia.org/api/rest_v1/page/html/Unix%20shell",
+            text=SAMPLE_HTML,
+        )
+        sections = api.get_sections("unix+shell")
+        assert any(s["title"] == "History" for s in sections)
+
+    def test_raises_value_error_when_no_match(self, httpx_mock: HTTPXMock) -> None:
+        httpx_mock.add_response(
+            url="https://en.wikipedia.org/api/rest_v1/page/html/xyzzy_nothing",
+            status_code=404,
+            json={},
+        )
+        httpx_mock.add_response(
+            url=httpx.URL(
+                "https://en.wikipedia.org/w/api.php",
+                params={
+                    "action": "query",
+                    "list": "search",
+                    "srsearch": "xyzzy_nothing",
+                    "srlimit": "1",
+                    "format": "json",
+                    "srprop": "snippet",
+                },
+            ),
+            json={"query": {"search": []}},
+        )
+        with pytest.raises(ValueError, match="No Wikipedia article found"):
+            api.get_sections("xyzzy_nothing")
+
+
+class TestFilterSections:
+    SECTIONS = [
+        {"title": "", "level": 0, "content": "Lead text."},
+        {"title": "History", "level": 2, "content": "History content."},
+        {"title": "Early History", "level": 3, "content": "Early history content."},
+        {"title": "Technical details", "level": 2, "content": "Technical content."},
+    ]
+
+    def test_exact_match(self) -> None:
+        result = api.filter_sections(self.SECTIONS, ("History",))
+        titles = [s["title"] for s in result]
+        assert "History" in titles
+
+    def test_case_insensitive_match(self) -> None:
+        result = api.filter_sections(self.SECTIONS, ("history",))
+        titles = [s["title"] for s in result]
+        assert "History" in titles
+
+    def test_fuzzy_substring_match(self) -> None:
+        result = api.filter_sections(self.SECTIONS, ("hist",))
+        titles = [s["title"] for s in result]
+        assert "History" in titles
+        assert "Early History" in titles
+
+    def test_multiple_queries(self) -> None:
+        result = api.filter_sections(self.SECTIONS, ("History", "Technical"))
+        titles = [s["title"] for s in result]
+        assert "History" in titles
+        assert "Technical details" in titles
+
+    def test_lead_section_excluded(self) -> None:
+        result = api.filter_sections(self.SECTIONS, ("History",))
+        assert all(s["title"] != "" for s in result)
+
+    def test_no_match_raises_value_error(self) -> None:
+        with pytest.raises(ValueError, match="No sections found matching"):
+            api.filter_sections(self.SECTIONS, ("xyzzy_nope",))
 
 
 class TestStripHtml:

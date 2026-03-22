@@ -83,3 +83,57 @@ def render_search_results(results: list[dict], query: str) -> None:
         )
 
     console.print(table)
+
+
+def render_section_list(sections: list[dict]) -> None:
+    """Render a numbered list of article section titles.
+
+    The lead section (empty title) is omitted.  Sub-sections are indented
+    according to their heading level.
+
+    Args:
+        sections: List of section dicts as returned by ``api.get_sections``.
+    """
+    named = [s for s in sections if s.get("title")]
+    if not named:
+        console.print("[yellow]No sections found.[/yellow]")
+        return
+
+    for section in named:
+        indent = "  " * max(0, section["level"] - 2)
+        console.print(f"{indent}[bold]{section['title']}[/bold]")
+
+
+def render_sections(sections: list[dict], *, raw: bool = False) -> None:
+    """Render the content of one or more article sections.
+
+    Args:
+        sections: List of section dicts to display.
+        raw:      When *True*, emit plain text instead of Rich markup.
+    """
+    if not sections:
+        console.print("[yellow]No sections to display.[/yellow]")
+        return
+
+    for section in sections:
+        title = section.get("title", "")
+        content = section.get("content", "")
+        level = section.get("level", 2)
+
+        if raw:
+            if title:
+                print(f"{'#' * level} {title}")
+                print()
+            if content:
+                print(content)
+                print()
+        else:
+            md_parts: list[str] = []
+            if title:
+                md_parts.append(f"{'#' * level} {title}")
+                md_parts.append("")
+            if content:
+                md_parts.append(content)
+            if md_parts:
+                console.print(Markdown("\n".join(md_parts)))
+                console.print()

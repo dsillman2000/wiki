@@ -21,8 +21,29 @@ from wiki_cli import __version__, api, render
     is_flag=True,
     help="Print plain text instead of Rich-formatted output.",
 )
+@click.option(
+    "--list-sections",
+    "--ls",
+    "list_sections",
+    is_flag=True,
+    help="List all sections in the article.",
+)
+@click.option(
+    "--section",
+    "-s",
+    "section_filter",
+    multiple=True,
+    metavar="SECTION",
+    help="Extract sections whose title matches SECTION (fuzzy, repeatable).",
+)
 @click.version_option(version=__version__, prog_name="wiki")
-def cli(query: tuple[str, ...], search_mode: bool, raw: bool) -> None:
+def cli(
+    query: tuple[str, ...],
+    search_mode: bool,
+    raw: bool,
+    list_sections: bool,
+    section_filter: tuple[str, ...],
+) -> None:
     """Fetch a Wikipedia article and display it in the terminal.
 
     QUERY is the article title or search terms.
@@ -33,6 +54,8 @@ def cli(query: tuple[str, ...], search_mode: bool, raw: bool) -> None:
       wiki "Unix shell"
       wiki --search "shell programming"
       wiki --raw "Bash (Unix shell)"
+      wiki --list-sections "Unix shell"
+      wiki -s History "Unix shell"
     """
     if not query:
         raise click.UsageError("QUERY is required.")
@@ -43,6 +66,13 @@ def cli(query: tuple[str, ...], search_mode: bool, raw: bool) -> None:
         if search_mode:
             results = api.search(query_str)
             render.render_search_results(results, query=query_str)
+        elif list_sections:
+            sections = api.get_sections(query_str)
+            render.render_section_list(sections)
+        elif section_filter:
+            sections = api.get_sections(query_str)
+            matched = api.filter_sections(sections, section_filter)
+            render.render_sections(matched, raw=raw)
         else:
             data = api.fetch_article(query_str)
             render.render_article(data, raw=raw)

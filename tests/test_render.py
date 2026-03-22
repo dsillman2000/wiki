@@ -30,6 +30,19 @@ SAMPLE_DATA = {
     },
 }
 
+SAMPLE_SECTIONS = [
+    {
+        "title": "History",
+        "level": 2,
+        "content": "The shell was developed in the 1970s.",
+    },
+    {
+        "title": "Early shells",
+        "level": 3,
+        "content": "The Thompson shell came first.",
+    },
+]
+
 
 class TestRenderArticle:
     def test_raw_includes_title(self, capsys) -> None:
@@ -101,3 +114,69 @@ class TestRenderSearchResults:
     def test_shows_query_in_heading(self) -> None:
         output = _capture(render.render_search_results, self.RESULTS, query="my query")
         assert "my query" in output
+
+
+class TestRenderSectionList:
+    def test_shows_section_titles(self) -> None:
+        output = _capture(render.render_section_list, SAMPLE_SECTIONS)
+        assert "History" in output
+        assert "Early shells" in output
+
+    def test_empty_sections_shows_message(self) -> None:
+        output = _capture(render.render_section_list, [])
+        assert "No sections" in output
+
+    def test_lead_section_excluded(self) -> None:
+        sections = [
+            {"title": "", "level": 0, "content": "Lead text."},
+            {"title": "History", "level": 2, "content": "Content."},
+        ]
+        output = _capture(render.render_section_list, sections)
+        # Lead (empty title) should not contribute a blank title line
+        assert "History" in output
+
+    def test_sub_section_indented(self) -> None:
+        output = _capture(render.render_section_list, SAMPLE_SECTIONS)
+        lines = output.splitlines()
+        history_line = next(line for line in lines if "History" in line)
+        early_line = next(line for line in lines if "Early shells" in line)
+        # Early shells (h3) should have more leading spaces than History (h2)
+        assert len(early_line) - len(early_line.lstrip()) > len(history_line) - len(
+            history_line.lstrip()
+        )
+
+
+class TestRenderSections:
+    def test_raw_includes_title(self, capsys) -> None:
+        render.render_sections(SAMPLE_SECTIONS[:1], raw=True)
+        captured = capsys.readouterr()
+        assert "History" in captured.out
+
+    def test_raw_includes_content(self, capsys) -> None:
+        render.render_sections(SAMPLE_SECTIONS[:1], raw=True)
+        captured = capsys.readouterr()
+        assert "1970s" in captured.out
+
+    def test_raw_heading_level_prefix(self, capsys) -> None:
+        render.render_sections(SAMPLE_SECTIONS[:1], raw=True)
+        captured = capsys.readouterr()
+        assert "## History" in captured.out
+
+    def test_rich_mode_includes_title(self) -> None:
+        output = _capture(render.render_sections, SAMPLE_SECTIONS)
+        assert "History" in output
+
+    def test_rich_mode_includes_content(self) -> None:
+        output = _capture(render.render_sections, SAMPLE_SECTIONS)
+        assert "1970s" in output
+
+    def test_empty_sections_shows_message(self) -> None:
+        output = _capture(render.render_sections, [])
+        assert "No sections" in output
+
+    def test_missing_fields_do_not_raise(self, capsys) -> None:
+        render.render_sections([{}], raw=True)
+        capsys.readouterr()  # should not raise
+
+    def test_rich_missing_fields_do_not_raise(self) -> None:
+        _capture(render.render_sections, [{}])

@@ -87,6 +87,21 @@ wiki "Unix shell" --raw
 wiki --search "shell programming"
 ```
 
+### Section Listing & Filtering
+
+```bash
+# List all sections in an article
+wiki --list-sections "Unix shell"
+wiki --ls "Unix shell"          # shorthand
+
+# Extract a specific section (fuzzy match)
+wiki -s History "Unix shell"
+wiki -s "early" "Unix shell"    # matches "Early shells", "Early history", etc.
+
+# Multiple sections
+wiki -s History -s "See also" "Unix shell"
+```
+
 ### Version
 
 ```bash
@@ -104,6 +119,12 @@ wiki --search "shell interpreters"
 
 # Print raw text
 wiki "Bash (Unix shell)" --raw
+
+# List all sections
+wiki --ls "Unix shell"
+
+# Read the History section
+wiki -s History "Unix shell"
 ```
 
 ## Development
