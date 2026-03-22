@@ -27,7 +27,7 @@ jobs:
         run: pip install ruff
 
       - name: Run ruff on Python source
-        run: ruff check wiki_cli/ tests/
+        run: ruff check wiki_client/ tests/
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
