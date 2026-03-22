@@ -1,0 +1,37 @@
+# Docker build context ignore file
+# Excludes unnecessary files from the build context to reduce build time and image size
+
+# Git and version control
+.git
+.gitignore
+.gitattributes
+
+# Development tools and configs
+node_modules
+package.json
+package-lock.json
+.husky
+.prettierrc
+.prettierignore
+.shellcheckrc
+npm-debug.log
+
+# Documentation and metadata (optional, kept if you want to include in image)
+SETUP.md
+AGENTS.md
+SKILL.md
+
+# Installation/uninstall scripts (not needed in container)
+install.sh
+uninstall.sh
+
+# Linting and CI
+lint.sh
+.github
+
+# IDE and editor files
+.vscode
+.idea
+*.swp
+*.swo
+*~
