@@ -47,6 +47,12 @@ source = "uv-dynamic-versioning"
 [tool.hatch.build.targets.wheel]
 packages = ["wiki_client"]
 
+[tool.hatch.build.hooks.custom]
+path = "wiki_client/hooks.py"
+
+[tool.hatch.version.raw-options]
+local-only = false
+
 [dependency-groups]
 dev = [
     "pytest>=8.0",
