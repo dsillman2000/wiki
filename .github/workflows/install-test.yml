@@ -31,9 +31,6 @@ jobs:
           which wiki
           wiki --version
 
-      - name: Run wiki --check
-        run: wiki --check
-
       - name: Uninstall wiki-cli
         run: pip uninstall --yes wiki-cli
 

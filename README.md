@@ -20,11 +20,11 @@ A command-line tool to fetch Wikipedia articles and display them in the terminal
 
 The following Python packages are installed automatically:
 
-| Package | Purpose |
-| ------- | ------- |
-| [click](https://click.palletsprojects.com/) | CLI argument parsing |
-| [httpx](https://www.python-httpx.org/) | HTTP requests to the Wikipedia API |
-| [rich](https://rich.readthedocs.io/) | Terminal formatting and rendering |
+| Package                                     | Purpose                            |
+| ------------------------------------------- | ---------------------------------- |
+| [click](https://click.palletsprojects.com/) | CLI argument parsing               |
+| [httpx](https://www.python-httpx.org/)      | HTTP requests to the Wikipedia API |
+| [rich](https://rich.readthedocs.io/)        | Terminal formatting and rendering  |
 
 ## Installation
 
@@ -184,4 +184,3 @@ make clean          # Remove build artifacts
 ## License
 
 MIT
-
