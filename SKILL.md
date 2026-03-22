@@ -3,50 +3,69 @@
 ## Tool
 
 - **Name:** wiki
-- **Type:** CLI (bash script)
-- **Purpose:** Fetch Wikipedia articles and convert to Markdown
+- **Type:** CLI (Python Click application)
+- **Purpose:** Fetch Wikipedia articles and display in terminal
 
 ## Usage
 
 ```bash
 wiki "article"                       # Fetch article
-wiki -s "Section" "article"          # Extract section
+wiki -s "Section" "article"          # Extract section (fuzzy match)
 wiki -ls "article"                  # List all sections
 wiki --search "query"               # Search Wikipedia
-wiki --featured                     # Today's featured article
-wiki --random                       # Random article
-wiki --news                         # Current events
-wiki --check                        # Verify dependencies
-wiki --version                      # Show version
+wiki --raw "article"               # Raw Markdown output
 wiki "article" -o file.md          # Save to file
-wiki "article" --raw               # Raw Markdown (no pretty-print)
+wiki "https://wikipedia.org/wiki/..." # Direct Wikipedia URL
+wiki --version                      # Show version
 ```
 
 ## Key Features
 
 - **Section extraction** - Fuzzy title matching (e.g., `-s "hist"` matches "History")
 - **Search mode** - Discover articles before fetching
-- **Special modes** - Featured article, random article, current news
-- **Output** - Pretty-printed (default) or raw Markdown
+- **Direct URLs** - Pass Wikipedia URLs directly
+- **Output modes** - Pretty-printed (default) or raw Markdown
 - **Save** - Write to file with `-o`
 
 ## Requirements
 
-- curl, pandoc, htmlq
-- If missing: `curl -fsSL https://raw.githubusercontent.com/dsillman2000/wiki/main/install.sh | bash`
+- Python 3.10+
+- Install via: `pip install wiki-cli` or `uvx wiki-cli`
 
 ## Examples
 
 ```bash
+# Get an article
+wiki "Unix shell"
+
 # Get a specific section
 wiki -s History "Unix shell"
 
 # List sections before extracting
 wiki -ls "Bash (Unix shell)"
 
+# Search for articles
+wiki --search "functional programming"
+
 # Save for later
 wiki "Python" -o python.md
 
 # Debug or pipe to other tools
 wiki "article" --raw | grep "keyword"
+
+# Direct Wikipedia URL
+wiki "https://en.wikipedia.org/wiki/Python_(programming_language)"
 ```
+
+## Output Modes
+
+- **Default (TTY):** Rich-formatted with tables and styling
+- **`--raw`:** Plain Markdown, ideal for piping or saving
+- **`-o file`:** Save to a specific file
+
+## Limitations
+
+- Wikipedia only (English by default)
+- Requires internet access
+- Section matching uses fuzzy matching
+- `--featured`, `--random`, `--news` not yet implemented

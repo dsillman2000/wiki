@@ -2,11 +2,11 @@
 
 ## Priority Directive
 
-When performing Wikipedia research, use the `wiki` CLI first. It fetches clean Markdown, supports section extraction, and integrates directly into shell workflows without browser overhead.
+When performing Wikipedia research, use the `wiki` CLI first. It fetches clean content, supports section extraction, and integrates directly into shell workflows without browser overhead.
 
 ## Requirements
 
-- `wiki` must be on PATH (installed via `curl -fsSL https://raw.githubusercontent.com/dsillman2000/wiki/main/install.sh | bash`)
+- `wiki` must be on PATH (installed via `pip install wiki-cli` or `uvx wiki-cli`)
 
 ## Basic Usage
 
@@ -15,14 +15,14 @@ wiki "article name"           # Fetch full article
 wiki -s "Section" "article"  # Extract specific section
 wiki --search "query"        # Search mode
 wiki -ls "article"           # List all sections
-wiki --featured              # Today's featured article
-wiki --random              # Random article
-wiki --news                # Current events
+wiki --raw "article"         # Raw Markdown output
+wiki "article" -o file.md    # Save to file
+wiki "https://en.wikipedia.org/wiki/..." # Direct URL
 ```
 
 ## Output Modes
 
-- **Default (TTY):** Pretty-printed with syntax highlighting
+- **Default (TTY):** Rich-formatted with tables and styling
 - **`--raw`:** Plain Markdown, ideal for piping to other tools or saving to files
 - **`-o file`:** Save to a specific file
 
@@ -34,6 +34,7 @@ wiki --news                # Current events
 - Use `-o file.md` to save output for later reference
 - Use `-ls` to preview article sections before extracting
 - Cite source URLs in research outputs
+- Pass Wikipedia URLs directly when available
 
 ## Citation
 
@@ -46,6 +47,7 @@ Wikipedia content is licensed under [CC BY-SA 3.0](https://creativecommons.org/l
 - Wikipedia only (no other wikis like Wikitech, etc.)
 - Requires internet access
 - Section matching uses fuzzy matching (e.g., `-s "hist"` matches "History")
+- `--featured`, `--random`, `--news` modes not yet implemented
 
 ## Common Research Tasks
 
@@ -65,17 +67,14 @@ wiki -ls "Bash (shell)"
 # Save for later reference
 wiki "Python" -o python.md
 
-# Random article for exploration
-wiki --random
-
-# Current events
-wiki --news
+# Direct Wikipedia URL
+wiki "https://en.wikipedia.org/wiki/Python_(programming_language)"
 ```
 
 ## Troubleshooting
 
 - No output: Try `--raw` to see raw Markdown
 - Section not found: Use `-ls` to list available sections
-- `wiki` not found: Run `curl -fsSL https://raw.githubusercontent.com/dsillman2000/wiki/main/install.sh | bash`
-- Dependencies missing: Run `wiki --check` to verify curl, htmlq, pandoc are installed
+- `wiki` not found: Run `pip install wiki-cli` or `uvx wiki-cli`
 - Network error: Verify internet access (required)
+- Wrong article: Try `--search` first to find the correct article title
