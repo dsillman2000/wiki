@@ -46,6 +46,36 @@ sudo mv htmlq /usr/local/bin/
 sudo apt-get install glow mdcat bat
 ```
 
+### Docker
+
+A Docker image is available on GitHub Container Registry (GHCR) with all
+dependencies pre-installed:
+
+```bash
+# Pull the image
+docker pull ghcr.io/dsillman2000/wiki:latest
+
+# Run a query
+docker run --rm ghcr.io/dsillman2000/wiki:latest "Unix shell"
+
+# Extract specific section
+docker run --rm ghcr.io/dsillman2000/wiki:latest -s History "Bash"
+
+# List sections
+docker run --rm ghcr.io/dsillman2000/wiki:latest -ls "Python"
+
+# Save output to file (mount current directory)
+docker run --rm -v "$(pwd)":/home/wiki ghcr.io/dsillman2000/wiki:latest \
+  "Operating system" -o os.md
+```
+
+**Advantages:**
+
+- No local dependency installation required
+- Consistent environment across systems
+- Easy integration into CI/CD pipelines
+- Lightweight multi-stage build (~311MB)
+
 ## Usage
 
 ### Basic Queries
