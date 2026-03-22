@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-import html as _html_module
 import re
 from urllib.parse import unquote, urlparse
 
 import httpx
+from bs4 import BeautifulSoup, Tag
 
 USER_AGENT = "wiki-cli/1.0 (+https://github.com/dsillman2000/wiki)"
 
@@ -14,21 +14,9 @@ _SUMMARY_URL = "https://en.wikipedia.org/api/rest_v1/page/summary/{title}"
 _HTML_URL = "https://en.wikipedia.org/api/rest_v1/page/html/{title}"
 _SEARCH_URL = "https://en.wikipedia.org/w/api.php"
 
-# Pre-compiled regex constants used across multiple functions
-_TAG_RE = re.compile(r"<[^>]+>")
-_TABLE_RE = re.compile(r"<table\b[^>]*>.*?</table>", re.DOTALL | re.IGNORECASE)
-_WIKITABLE_RE = re.compile(
-    r'<table\b[^>]*\bclass="[^"]*\bwikitable\b[^"]*"[^>]*>(.*?)</table>',
-    re.DOTALL | re.IGNORECASE,
-)
-_CAPTION_RE = re.compile(
-    r"<caption\b[^>]*>(.*?)</caption>", re.DOTALL | re.IGNORECASE
-)
-_ROW_RE = re.compile(r"<tr\b[^>]*>(.*?)</tr>", re.DOTALL | re.IGNORECASE)
-_TH_RE = re.compile(r"<th\b[^>]*>(.*?)</th>", re.DOTALL | re.IGNORECASE)
-_TD_RE = re.compile(r"<td\b[^>]*>(.*?)</td>", re.DOTALL | re.IGNORECASE)
-_HEADING_RE = re.compile(r"<(h[1-6])[^>]*>(.*?)</\1>", re.DOTALL | re.IGNORECASE)
-_HEADING_ID_RE = re.compile(r'\bid="([^"]*)"', re.IGNORECASE)
+# Heading tag names used for BeautifulSoup tree searches
+_HEADING_TAGS = frozenset({"h1", "h2", "h3", "h4", "h5", "h6"})
+_HEADING_TAG_RE = re.compile(r"^h[1-6]$", re.IGNORECASE)
 
 
 def _url_to_title(query: str) -> str | None:
@@ -253,37 +241,39 @@ def _flatten_section_tree(tree: list[dict]) -> list[dict]:
 
 
 def _strip_html(text: str) -> str:
-    """Remove simple HTML tags from a snippet string."""
-    return _TAG_RE.sub("", text)
+    """Remove HTML tags from a snippet string using BeautifulSoup."""
+    return BeautifulSoup(text, "html.parser").get_text()
 
 
-def _extract_text(fragment: str) -> str:
-    """Strip all HTML tags, unescape entities, and collapse whitespace."""
-    text = _TAG_RE.sub("", fragment)
-    text = _html_module.unescape(text)
-    return re.sub(r"\s+", " ", text).strip()
+def _direct_rows(table: Tag) -> list[Tag]:
+    """Return direct ``<tr>`` children of *table*, accounting for wrappers.
 
-
-def _strip_all_tables(html: str) -> str:
-    """Iteratively remove all ``<table>`` elements from *html*.
-
-    Repeats until no tables remain, so nested tables are handled correctly.
+    Handles tables with or without ``<tbody>``/``<thead>``/``<tfoot>`` wrappers
+    so that rows from nested tables inside cells are never included.
 
     Args:
-        html: Raw HTML fragment.
+        table: A BS4 ``<table>`` Tag.
 
     Returns:
-        HTML string with all table elements removed.
+        Ordered list of direct ``<tr>`` Tags belonging to *table* itself.
     """
-    prev = None
-    while prev != html:
-        prev = html
-        html = _TABLE_RE.sub("", html)
-    return html
+    rows: list[Tag] = []
+    for child in table.children:
+        if not isinstance(child, Tag):
+            continue
+        if child.name == "tr":
+            rows.append(child)
+        elif child.name in ("tbody", "thead", "tfoot"):
+            rows.extend(child.find_all("tr", recursive=False))
+    return rows
 
 
-def _parse_tables(html_fragment: str) -> list[dict]:
-    """Parse ``<table class="wikitable">`` elements from an HTML fragment.
+def _parse_tables(html_or_tag: str | Tag) -> list[dict]:
+    """Parse ``<table class="wikitable">`` elements using BeautifulSoup.
+
+    Replaces the previous regex-based approach with proper HTML tree
+    traversal, correctly handling nested tags, malformed markup, and
+    tables-within-cells.
 
     Each returned dict contains:
         - ``caption``: table caption text (empty string if absent)
@@ -291,41 +281,43 @@ def _parse_tables(html_fragment: str) -> list[dict]:
         - ``rows``: list of data rows, each a list of cell strings
 
     Cells are plain text — all HTML tags are stripped and entities decoded.
-    colspan / rowspan attributes are ignored (only cell text is extracted).
+    Nested tables inside cells are removed before text extraction.
 
     Args:
-        html_fragment: Raw HTML string (e.g. the content of one section).
+        html_or_tag: Raw HTML string or BS4 Tag to search for wikitables.
 
     Returns:
         List of table dicts in document order.
     """
+    if isinstance(html_or_tag, Tag):
+        root: BeautifulSoup | Tag = html_or_tag
+    else:
+        root = BeautifulSoup(html_or_tag, "html.parser")
 
-    def _cell_text(cell_html: str) -> str:
-        # Remove nested tables so their text is not mixed into the cell
-        clean = _strip_all_tables(cell_html)
-        return _extract_text(clean)
+    def _cell_text(cell: Tag) -> str:
+        # Remove nested tables so their text does not bleed into the cell
+        for nested in cell.find_all("table"):
+            nested.decompose()
+        return re.sub(r"\s+", " ", cell.get_text(separator=" ")).strip()
 
     tables: list[dict] = []
-    for table_match in _WIKITABLE_RE.finditer(html_fragment):
-        table_inner = table_match.group(1)
-
-        cap_match = _CAPTION_RE.search(table_inner)
-        caption = _cell_text(cap_match.group(1)) if cap_match else ""
+    for table in root.select("table.wikitable"):
+        cap_tag = table.find("caption")
+        caption = _cell_text(cap_tag) if cap_tag else ""
 
         headers: list[str] = []
         rows: list[list[str]] = []
 
-        for row_match in _ROW_RE.finditer(table_inner):
-            row_html = row_match.group(1)
-            th_cells = [_cell_text(m.group(1)) for m in _TH_RE.finditer(row_html)]
-            td_cells = [_cell_text(m.group(1)) for m in _TD_RE.finditer(row_html)]
+        for tr in _direct_rows(table):
+            th_cells = tr.find_all("th", recursive=False)
+            td_cells = tr.find_all("td", recursive=False)
 
             if th_cells and not td_cells:
-                # Pure header row — use the first one as the column headers
+                # Pure header row — use the first such row as column headers
                 if not headers:
-                    headers = th_cells
+                    headers = [_cell_text(th) for th in th_cells]
             elif td_cells:
-                rows.append(td_cells)
+                rows.append([_cell_text(td) for td in td_cells])
 
         if headers or rows:
             tables.append({"caption": caption, "headers": headers, "rows": rows})
@@ -357,6 +349,11 @@ def _fetch_html(title: str) -> str:
 def _parse_sections(html_content: str) -> list[dict]:
     """Parse Wikipedia article HTML into a flat list of section dicts.
 
+    Uses BeautifulSoup for reliable parsing of headings, tables, and content,
+    replacing the previous fragile regex-based approach.  Handles both
+    Wikipedia REST-API HTML (``<section data-mw-section-id="N">`` elements)
+    and plain heading-based HTML via a fallback path.
+
     Each dict contains:
         - ``id``: anchor id from the heading element (empty for lead section)
         - ``title``: section heading text (empty string for the lead section)
@@ -370,30 +367,24 @@ def _parse_sections(html_content: str) -> list[dict]:
     Returns:
         List of section dicts in document order, lead section first.
     """
-    # Remove script/style/sup elements (footnote markers, etc.)
-    clean = re.sub(
-        r"<(script|style|sup)[^>]*>.*?</\1>",
-        "",
-        html_content,
-        flags=re.DOTALL | re.IGNORECASE,
-    )
-    # Remove edit-section spans inserted by MediaWiki
-    clean = re.sub(
-        r'<span[^>]*class="mw-editsection"[^>]*>.*?</span>',
-        "",
-        clean,
-        flags=re.DOTALL | re.IGNORECASE,
-    )
+    soup = BeautifulSoup(html_content, "html.parser")
 
-    headings = list(_HEADING_RE.finditer(clean))
-    sections: list[dict] = []
+    # Remove noisy elements: footnote markers, scripts, styles, edit links
+    for tag in soup.find_all(["script", "style", "sup"]):
+        tag.decompose()
+    for span in soup.find_all("span", class_="mw-editsection"):
+        span.decompose()
 
-    def _section_entry(
-        section_id: str, title: str, level: int, raw_html: str
-    ) -> dict:
-        tables = _parse_tables(raw_html)
-        text_html = _strip_all_tables(raw_html)
-        content = _extract_text(text_html)
+    def _make_entry(section_id: str, title: str, level: int, html: str) -> dict:
+        """Build a section entry dict from raw HTML content."""
+        # Parse once; _parse_tables decomposes nested tables inside cells but
+        # leaves the wikitables themselves intact, so we can still remove them
+        # afterward for plain-text extraction.
+        entry_soup = BeautifulSoup(html, "html.parser")
+        tables = _parse_tables(entry_soup)
+        for tbl in entry_soup.find_all("table"):
+            tbl.decompose()
+        content = re.sub(r"\s+", " ", entry_soup.get_text(separator=" ")).strip()
         return {
             "id": section_id,
             "title": title,
@@ -402,22 +393,57 @@ def _parse_sections(html_content: str) -> list[dict]:
             "tables": tables,
         }
 
-    # Lead section (content before the first heading)
-    lead_html = clean[: headings[0].start()] if headings else clean
-    lead_entry = _section_entry("", "", 0, lead_html)
-    if lead_entry["content"] or lead_entry["tables"]:
-        sections.append(lead_entry)
+    sections: list[dict] = []
 
-    for i, match in enumerate(headings):
-        level = int(match.group(1)[1])
-        heading_text = _extract_text(match.group(2))
-        id_match = _HEADING_ID_RE.search(match.group(0))
-        section_id = id_match.group(1) if id_match else ""
-        start = match.end()
-        end = headings[i + 1].start() if i + 1 < len(headings) else len(clean)
-        sections.append(
-            _section_entry(section_id, heading_text, level, clean[start:end])
-        )
+    # Primary path: Wikipedia REST API wraps each section in
+    # <section data-mw-section-id="N"> elements.
+    section_els = soup.find_all("section", attrs={"data-mw-section-id": True})
+    if section_els:
+        for section_el in section_els:
+            heading = section_el.find(_HEADING_TAG_RE)
+            if heading:
+                level = int(heading.name[1])
+                title = heading.get_text(strip=True)
+                section_id = heading.get("id", "")
+                heading.decompose()
+            else:
+                level = 0
+                title = ""
+                section_id = ""
+            entry = _make_entry(section_id, title, level, str(section_el))
+            if entry["content"] or entry["tables"]:
+                sections.append(entry)
+        return sections
+
+    # Fallback: flat HTML where headings and content are sibling elements
+    # (e.g. plain Wikipedia article HTML without <section> wrappers).
+    root = soup.find("body") or soup
+    current_heading: Tag | None = None
+    current_content: list[str] = []
+    groups: list[tuple[Tag | None, list[str]]] = []
+
+    for child in root.children:
+        if isinstance(child, Tag) and child.name in _HEADING_TAGS:
+            groups.append((current_heading, current_content))
+            current_heading = child
+            current_content = []
+        else:
+            current_content.append(str(child))
+    groups.append((current_heading, current_content))
+
+    for heading, content_parts in groups:
+        content_html = "".join(content_parts)
+        if heading is not None:
+            level = int(heading.name[1])
+            title = heading.get_text(strip=True)
+            section_id = heading.get("id", "")
+        else:
+            level = 0
+            title = ""
+            section_id = ""
+        entry = _make_entry(section_id, title, level, content_html)
+        if entry["content"] or entry["tables"]:
+            sections.append(entry)
 
     return sections
 

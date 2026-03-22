@@ -689,27 +689,6 @@ class TestBuildSectionTreeWithTables:
         assert len(by_title["Filmography"]["tables"]) == 1
 
 
-class TestStripAllTables:
-    def test_removes_single_table(self) -> None:
-        html = "<p>Before</p><table><tr><td>x</td></tr></table><p>After</p>"
-        result = api._strip_all_tables(html)
-        assert "<table" not in result
-        assert "Before" in result
-        assert "After" in result
-
-    def test_removes_nested_tables(self) -> None:
-        html = "<table><tr><td><table><tr><td>inner</td></tr></table></td></tr></table>"
-        result = api._strip_all_tables(html)
-        assert "<table" not in result
-
-    def test_empty_input(self) -> None:
-        assert api._strip_all_tables("") == ""
-
-    def test_no_table_unchanged(self) -> None:
-        html = "<p>No table here.</p>"
-        assert api._strip_all_tables(html) == html
-
-
 class TestUrlToTitle:
     def test_en_wikipedia_url(self) -> None:
         result = api._url_to_title("https://en.wikipedia.org/wiki/Unix_shell")
