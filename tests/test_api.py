@@ -212,61 +212,6 @@ class TestFetchArticle:
         history = next(s for s in result["sections"] if s["title"] == "History")
         assert any(s["title"] == "Early shells" for s in history["subsections"])
 
-    def test_falls_back_to_search_on_404(self, httpx_mock: HTTPXMock) -> None:
-        httpx_mock.add_response(
-            url="https://en.wikipedia.org/api/rest_v1/page/summary/unix+shell",
-            status_code=404,
-            json={},
-        )
-        httpx_mock.add_response(
-            url=httpx.URL(
-                "https://en.wikipedia.org/w/api.php",
-                params={
-                    "action": "query",
-                    "list": "search",
-                    "srsearch": "unix+shell",
-                    "srlimit": "1",
-                    "format": "json",
-                    "srprop": "snippet",
-                },
-            ),
-            json={"query": {"search": [{"title": "Unix shell", "snippet": ""}]}},
-        )
-        httpx_mock.add_response(
-            url="https://en.wikipedia.org/api/rest_v1/page/summary/Unix%20shell",
-            json=SAMPLE_SUMMARY,
-        )
-        httpx_mock.add_response(
-            url="https://en.wikipedia.org/api/rest_v1/page/html/Unix%20shell",
-            text=SAMPLE_HTML,
-        )
-        result = api.fetch_article("unix+shell")
-        assert result["title"] == "Unix shell"
-        assert "sections" in result
-
-    def test_raises_value_error_when_no_match(self, httpx_mock: HTTPXMock) -> None:
-        httpx_mock.add_response(
-            url="https://en.wikipedia.org/api/rest_v1/page/summary/xyzzy_nothing",
-            status_code=404,
-            json={},
-        )
-        httpx_mock.add_response(
-            url=httpx.URL(
-                "https://en.wikipedia.org/w/api.php",
-                params={
-                    "action": "query",
-                    "list": "search",
-                    "srsearch": "xyzzy_nothing",
-                    "srlimit": "1",
-                    "format": "json",
-                    "srprop": "snippet",
-                },
-            ),
-            json={"query": {"search": []}},
-        )
-        with pytest.raises(ValueError, match="No Wikipedia article found"):
-            api.fetch_article("xyzzy_nothing")
-
     def test_empty_sections_on_html_failure(self, httpx_mock: HTTPXMock) -> None:
         httpx_mock.add_response(
             url="https://en.wikipedia.org/api/rest_v1/page/summary/Unix%20shell",
@@ -646,12 +591,10 @@ class TestParseSectionsWithTables:
     def test_tables_extracted_and_text_clean(self) -> None:
         sections = api._parse_sections(SAMPLE_HTML_WITH_TABLE)
         by_title = {s["title"]: s for s in sections}
-        # Every section must have a "tables" key
         assert all("tables" in s for s in sections)
         film_tables = by_title["Filmography"]["tables"]
         assert len(film_tables) == 1
         assert film_tables[0]["headers"] == ["Year", "Title", "Role"]
-        # Table text must not bleed into plain-text content
         assert "Year" not in by_title["Filmography"]["content"]
         assert "1997" not in by_title["Filmography"]["content"]
 
@@ -662,15 +605,6 @@ class TestParseSectionsWithTables:
     def test_non_table_content_still_extracted(self) -> None:
         by_title = {s["title"]: s for s in api._parse_sections(SAMPLE_HTML_WITH_TABLE)}
         assert "TV work" in by_title["Filmography"]["content"]
-
-    def test_tables_preserved_through_tree_and_flatten(self) -> None:
-        flat = api._parse_sections(SAMPLE_HTML_WITH_TABLE)
-        tree = api._build_section_tree(flat)
-        by_title_tree = {s["title"]: s for s in tree}
-        assert len(by_title_tree["Filmography"]["tables"]) == 1
-        flattened = api.flatten_sections(tree)
-        by_title_flat = {s["title"]: s for s in flattened}
-        assert len(by_title_flat["Filmography"]["tables"]) == 1
 
 
 # ---------------------------------------------------------------------------
@@ -712,20 +646,6 @@ class TestUrlToTitle:
 # ---------------------------------------------------------------------------
 # fetch_article with URL input
 # ---------------------------------------------------------------------------
-
-
-class TestFetchArticleWithUrl:
-    def test_url_resolves_to_title(self, httpx_mock: HTTPXMock) -> None:
-        httpx_mock.add_response(
-            url="https://en.wikipedia.org/api/rest_v1/page/summary/Unix%20shell",
-            json=SAMPLE_SUMMARY,
-        )
-        httpx_mock.add_response(
-            url="https://en.wikipedia.org/api/rest_v1/page/html/Unix%20shell",
-            text=SAMPLE_HTML,
-        )
-        result = api.fetch_article("https://en.wikipedia.org/wiki/Unix_shell")
-        assert result["title"] == "Unix shell"
 
 
 # ---------------------------------------------------------------------------

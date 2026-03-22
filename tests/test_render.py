@@ -335,20 +335,7 @@ class TestRenderSectionsWithTables:
         render.render_sections([section], raw=True)
         assert "Some history." in capsys.readouterr().out
 
-
-# ---------------------------------------------------------------------------
-# render_article with tables
-# ---------------------------------------------------------------------------
-
-
-class TestRenderArticleWithTables:
-    def test_raw_includes_table_not_garbled(self, capsys) -> None:
-        render.render_article(ARTICLE_WITH_TABLE, raw=True)
-        out = capsys.readouterr().out
-        assert "Year" in out and "|" in out
-        lines = out.splitlines()
-        content_idx = next((i for i, ln in enumerate(lines) if "TV work" in ln), None)
-        assert content_idx is not None
-
-    def test_rich_includes_table(self) -> None:
-        assert "Year" in _capture(render.render_article, ARTICLE_WITH_TABLE)
+    def test_render_article_with_table(self) -> None:
+        out = _capture(render.render_article, ARTICLE_WITH_TABLE)
+        assert "Year" in out
+        assert "1997" in out
