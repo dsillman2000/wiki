@@ -88,7 +88,7 @@ docker run --rm ghcr.io/dsillman2000/wiki-client:latest "Unix shell"
 docker run --rm ghcr.io/dsillman2000/wiki-client:latest -s History "Bash"
 
 # List sections
-docker run --rm ghcr.io/dsillman2000/wiki-client:latest -ls "Python"
+docker run --rm ghcr.io/dsillman2000/wiki-client:latest --ls "Python"
 
 # Save output to file (mount current directory)
 docker run --rm -v "$(pwd)":/home/wiki ghcr.io/dsillman2000/wiki-client:latest \
