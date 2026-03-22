@@ -27,7 +27,7 @@ jobs:
 
       - name: Run shellcheck
         run: |
-          shellcheck wiki lint.sh Makefile
+          shellcheck wiki lint.sh
 
       - name: Run prettier check
         run: npx prettier --check "*.md"
