@@ -1,4 +1,4 @@
-# wiki
+# wiki-cli
 
 [![PyPI Version](https://img.shields.io/pypi/v/wiki-cli)](https://pypi.org/project/wiki-cli/)
 [![Python Versions](https://img.shields.io/pypi/pyversions/wiki-cli)](https://pypi.org/project/wiki-cli/)
