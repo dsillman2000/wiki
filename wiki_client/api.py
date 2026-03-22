@@ -175,34 +175,44 @@ def fetch_article(query: str) -> dict:
 def _build_section_tree(flat_sections: list[dict]) -> list[dict]:
     """Build a hierarchical section tree from a flat section list.
 
-    The lead section (empty title) is excluded.  Each node in the tree
-    contains ``id``, ``title``, ``level``, ``content``, and ``subsections``.
+    The lead section (empty title) is included as the first item with level 1.
+    Each node in the tree contains ``id``, ``title``, ``level``, ``content``,
+    and ``subsections``.
 
     Args:
         flat_sections: Flat list as returned by :func:`_parse_sections`.
 
     Returns:
         List of top-level section dicts; sub-sections are nested under
-        their parent's ``subsections`` key.
+        their parent's ``subsections`` key. The lead section is first.
     """
     tree: list[dict] = []
-    # ancestors tracks the chain of open parent nodes (most recent last)
     ancestors: list[dict] = []
 
     for s in flat_sections:
-        if not s.get("title"):
-            continue  # skip lead section
+        title = s.get("title", "")
+        if not title:
+            tree.append(
+                {
+                    "id": s.get("id", ""),
+                    "title": title,
+                    "level": 1,
+                    "content": s["content"],
+                    "tables": s.get("tables", []),
+                    "subsections": [],
+                }
+            )
+            continue
 
         node: dict = {
             "id": s.get("id", ""),
-            "title": s["title"],
+            "title": title,
             "level": s["level"],
             "content": s["content"],
             "tables": s.get("tables", []),
             "subsections": [],
         }
 
-        # Pop ancestors that are at the same level or deeper (not parents)
         while ancestors and ancestors[-1]["level"] >= node["level"]:
             ancestors.pop()
 

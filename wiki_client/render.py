@@ -175,6 +175,7 @@ def _render_section_tree_rich(sections: list[dict]) -> None:
             md_parts.append("")
         if content:
             md_parts.append(content)
+
         if md_parts:
             _render_markdown_with_code("\n".join(md_parts))
             console.print()

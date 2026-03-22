@@ -323,9 +323,9 @@ class TestBuildSectionTree:
     def test_structure(self) -> None:
         tree = api._build_section_tree(_FLAT_SECTIONS)
         titles = [s["title"] for s in tree]
+        assert "" in titles  # lead included
         assert "History" in titles
         assert "Career" in titles
-        assert "" not in titles  # lead excluded
         history = next(s for s in tree if s["title"] == "History")
         sub_titles = [s["title"] for s in history["subsections"]]
         assert "Early shells" in sub_titles
@@ -336,9 +336,12 @@ class TestBuildSectionTree:
     def test_empty_input_returns_empty(self) -> None:
         assert api._build_section_tree([]) == []
 
-    def test_lead_only_returns_empty(self) -> None:
+    def test_lead_only_returns_lead(self) -> None:
         flat = [{"id": "", "title": "", "level": 0, "content": "Lead.", "tables": []}]
-        assert api._build_section_tree(flat) == []
+        tree = api._build_section_tree(flat)
+        assert len(tree) == 1
+        assert tree[0]["title"] == ""
+        assert tree[0]["content"] == "Lead."
 
 
 # ---------------------------------------------------------------------------
