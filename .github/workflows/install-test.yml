@@ -26,7 +26,7 @@ jobs:
 
       - name: Install htmlq
         run: |
-          curl -fsSL https://github.com/mgdm/htmlq/releases/download/0.4.0/htmlq-0.4.0-x86_64-unknown-linux-gnu.tar.gz -o /tmp/htmlq.tar.gz
+          curl -fsSL https://github.com/mgdm/htmlq/releases/download/v0.4.0/htmlq-x86_64-linux.tar.gz -o /tmp/htmlq.tar.gz
           sudo tar -xzf /tmp/htmlq.tar.gz -C /usr/local/bin/
           chmod +x /usr/local/bin/htmlq
 
