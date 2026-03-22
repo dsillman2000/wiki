@@ -843,7 +843,9 @@ class TestWikipediaLinks:
         </section>
         """
         sections = api._parse_sections(html)
-        assert "[object-oriented](OOP)" in sections[0]["content"]
+        assert (
+            "[object-oriented](https://en.wikipedia.org/OOP)" in sections[0]["content"]
+        )
 
     def test_external_link_converted(self) -> None:
         html = """

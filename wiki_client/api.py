@@ -483,7 +483,8 @@ def _parse_sections(html_content: str) -> list[dict]:
                         if "mw:WikiLink" in rel:
                             if href.startswith("./"):
                                 href = href[2:]
-                            href = href.replace("_", " ")
+                            if not href.startswith("http"):
+                                href = f"https://en.wikipedia.org/{href}"
                             text_parts.append(f"[{text}]({href})")
                         elif "mw:ExtLink" in rel or child.get("class") == ["external"]:
                             text_parts.append(f"[{text}]({href})")

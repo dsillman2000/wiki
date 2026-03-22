@@ -2,12 +2,9 @@
 
 from __future__ import annotations
 
-import re
-
 from rich import box
 from rich.console import Console
 from rich.markdown import Markdown
-from rich.syntax import Syntax
 from rich.table import Table
 
 console = Console()
@@ -19,10 +16,7 @@ console = Console()
 
 
 def _table_ncols(table: dict) -> int:
-    """Return the number of columns for *table*.
-
-    Derived from the header count, falling back to the first data row, then 0.
-    """
+    """Return the number of columns for *table*."""
     headers = table.get("headers", [])
     rows = table.get("rows", [])
     if headers:
@@ -31,14 +25,7 @@ def _table_ncols(table: dict) -> int:
 
 
 def _table_to_markdown(table: dict) -> str:
-    """Convert a table dict to a GitHub Flavored Markdown table string.
-
-    Args:
-        table: Dict with ``caption``, ``headers``, and ``rows`` keys.
-
-    Returns:
-        Multi-line Markdown string, or empty string if the table has no data.
-    """
+    """Convert a table dict to a GitHub Flavored Markdown table string."""
     headers = table.get("headers", [])
     rows = table.get("rows", [])
     caption = table.get("caption", "")
@@ -66,14 +53,7 @@ def _table_to_markdown(table: dict) -> str:
 
 
 def _table_to_rich(table: dict) -> Table:
-    """Convert a table dict to a Rich :class:`~rich.table.Table` object.
-
-    Args:
-        table: Dict with ``caption``, ``headers``, and ``rows`` keys.
-
-    Returns:
-        A Rich Table ready for printing.
-    """
+    """Convert a table dict to a Rich Table object."""
     headers = table.get("headers", [])
     rows = table.get("rows", [])
     caption = table.get("caption", "") or None
@@ -99,29 +79,6 @@ def _table_to_rich(table: dict) -> Table:
         rich_table.add_row(*padded[:ncols])
 
     return rich_table
-
-
-_CODE_BLOCK_RE = re.compile(r"```(\w*)\n(.*?)```", re.DOTALL)
-
-
-def _render_markdown_with_code(text: str) -> None:
-    """Render markdown text, using Rich Syntax for code blocks.
-
-    Args:
-        text: Markdown text that may contain code fences.
-    """
-    parts = _CODE_BLOCK_RE.split(text)
-    first = parts[0]
-    if first:
-        console.print(Markdown(first))
-
-    for i in range(1, len(parts), 3):
-        lang = parts[i] if i < len(parts) else ""
-        code = parts[i + 1] if i + 1 < len(parts) else ""
-        console.print(Syntax(code.strip(), lexer=lang or "text", theme="monokai"))
-        remainder = parts[i + 2] if i + 2 < len(parts) else ""
-        if remainder:
-            console.print(Markdown(remainder))
 
 
 # ---------------------------------------------------------------------------
@@ -157,11 +114,7 @@ def _render_section_tree_raw(sections: list[dict]) -> None:
 
 
 def _render_section_tree_rich(sections: list[dict]) -> None:
-    """Recursively render a hierarchical section tree with Rich Markdown.
-
-    Args:
-        sections: List of section dicts (may include ``subsections`` and ``tables``).
-    """
+    """Recursively render a hierarchical section tree with Rich Markdown."""
     for section in sections:
         title = section.get("title", "")
         content = section.get("content", "")
@@ -177,7 +130,7 @@ def _render_section_tree_rich(sections: list[dict]) -> None:
             md_parts.append(content)
 
         if md_parts:
-            _render_markdown_with_code("\n".join(md_parts))
+            console.print(Markdown("\n".join(md_parts)))
             console.print()
 
         for table in tables:
@@ -233,12 +186,12 @@ def render_article(data: dict, *, raw: bool = False) -> None:
             md_parts.append(f"*{description}*")
         md_parts.append("")
     if md_parts:
-        _render_markdown_with_code("\n".join(md_parts))
+        console.print(Markdown("\n".join(md_parts)))
 
     if sections:
         _render_section_tree_rich(sections)
     elif extract:
-        _render_markdown_with_code(extract)
+        console.print(Markdown(extract))
 
     if page_url:
         console.print(Markdown(f"*Source: <{page_url}>*"))
@@ -345,7 +298,7 @@ def render_sections(
             if content:
                 md_parts.append(content)
             if md_parts:
-                _render_markdown_with_code("\n".join(md_parts))
+                console.print(Markdown("\n".join(md_parts)))
                 console.print()
             for table in tables:
                 console.print(_table_to_rich(table))
