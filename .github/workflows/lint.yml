@@ -39,7 +39,7 @@ jobs:
         run: uv run ruff format --check wiki_client/ tests/
 
       - name: Run prettier check
-        run: npx prettier --check "**/*.md"
+        run: npx prettier@3.3.3 --check "**/*.md"
 
       - name: Run shellcheck
         run: shellcheck install.sh lint.sh uninstall.sh
