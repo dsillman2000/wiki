@@ -51,6 +51,17 @@ from wiki_client import __version__, api, render
     is_flag=True,
     help="Fetch a random Wikipedia article.",
 )
+@click.option(
+    "--featured",
+    is_flag=True,
+    help="Fetch today's featured Wikipedia article.",
+)
+@click.option(
+    "--featured-date",
+    metavar="DATE",
+    default=None,
+    help="Fetch featured article for specific date (YYYY-MM-DD format).",
+)
 @click.version_option(version=__version__, prog_name="wiki")
 def cli(
     query: tuple[str, ...],
@@ -60,6 +71,8 @@ def cli(
     section_filter: tuple[str, ...],
     output: str | None,
     random: bool,
+    featured: bool,
+    featured_date: str | None,
 ) -> None:
     """Fetch a Wikipedia article and display it in the terminal.
 
@@ -79,16 +92,33 @@ def cli(
       wiki --random --raw
       wiki --random -o random_article.md
       wiki --random --ls
+      wiki --featured
+      wiki --featured --raw
+      wiki --featured -o featured.md
+      wiki --featured --ls
+      wiki --featured --featured-date 2025-03-23
     """
     # Validate incompatible flag combinations
     if random and section_filter:
         raise click.UsageError("--random cannot be used with --section/-s")
 
+    if featured and section_filter:
+        raise click.UsageError("--featured cannot be used with --section/-s")
+
     if random and query:
         raise click.UsageError("QUERY cannot be provided with --random")
 
-    if not random and not query:
-        raise click.UsageError("QUERY is required (or use --random).")
+    if featured and query:
+        raise click.UsageError("QUERY cannot be provided with --featured")
+
+    if featured_date and not featured:
+        raise click.UsageError("--featured-date requires --featured flag")
+
+    if random and featured:
+        raise click.UsageError("--random and --featured are mutually exclusive")
+
+    if not random and not featured and not query:
+        raise click.UsageError("QUERY is required (or use --random or --featured).")
 
     query_str = " ".join(query)
 
@@ -100,6 +130,16 @@ def cli(
         try:
             if random:
                 data = api.fetch_random_article()
+                flat_sections = api.flatten_sections(data.get("sections", []))
+                page_url = (
+                    data.get("content_urls", {}).get("desktop", {}).get("page", "")
+                )
+                if list_sections:
+                    render.render_section_list(flat_sections, page_url=page_url)
+                else:
+                    render.render_article(data, raw=raw)
+            elif featured:
+                data = api.fetch_featured_article(featured_date)
                 flat_sections = api.flatten_sections(data.get("sections", []))
                 page_url = (
                     data.get("content_urls", {}).get("desktop", {}).get("page", "")
@@ -133,6 +173,10 @@ def cli(
                 raise click.ClickException(
                     f"HTTP error {exc.response.status_code} fetching random article"
                 ) from exc
+            elif featured:
+                raise click.ClickException(
+                    f"HTTP error {exc.response.status_code} fetching featured article"
+                ) from exc
             else:
                 raise click.ClickException(
                     f"HTTP error {exc.response.status_code} fetching article: "
@@ -142,6 +186,10 @@ def cli(
             if random:
                 raise click.ClickException(
                     f"Network error fetching random article: {exc}"
+                ) from exc
+            elif featured:
+                raise click.ClickException(
+                    f"Network error fetching featured article: {exc}"
                 ) from exc
             else:
                 raise click.ClickException(
