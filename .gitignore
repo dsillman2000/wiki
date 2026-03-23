@@ -34,3 +34,6 @@ __pycache__/
 .venv/
 venv/
 uv.lock
+
+# Auto-generated version file (generated at build time)
+wiki_client/_version.py
