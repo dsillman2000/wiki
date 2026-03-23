@@ -245,6 +245,7 @@ wiki --featured --raw
 wiki --featured -o featured.md
 wiki --featured --ls
 wiki --featured --featured-date 2025-03-23
+wiki --featured-date 2025-03-23
 
 # Raw output
 wiki --raw "Bash"
@@ -325,7 +326,7 @@ Benefits:
 | `--search`              | Show search results instead of fetching         |
 | `--random`              | Fetch a random Wikipedia article                |
 | `--featured`            | Fetch today's featured Wikipedia article        |
-| `--featured-date DATE`  | Fetch featured article for specific date        |
+| `--featured-date DATE`  | Fetch featured article for specific date (implies --featured) |
 | `--raw`                 | Plain text/Markdown output (no Rich formatting) |
 | `-o, --output FILE`     | Write output to FILE                            |
 | `--version`             | Show version                                    |

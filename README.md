@@ -146,6 +146,7 @@ wiki --featured
 
 # Fetch featured article for specific date
 wiki --featured --featured-date 2025-03-23
+wiki --featured-date 2025-03-23  # --featured-date implies --featured
 
 # List sections of featured article
 wiki --featured --ls

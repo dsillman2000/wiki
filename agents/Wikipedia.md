@@ -16,6 +16,7 @@ wiki -s "Section" "article"  # Extract specific section
 wiki --search "query"        # Search mode
 wiki --random                # Fetch random article
 wiki --featured              # Fetch today's featured article
+wiki --featured-date DATE    # Fetch featured article for specific date
 wiki -ls "article"           # List all sections
 wiki --raw "article"         # Raw Markdown output
 wiki "article" -o file.md    # Save to file
@@ -75,6 +76,7 @@ wiki --random -o random_article.md
 wiki --featured
 wiki --featured --ls
 wiki --featured -o featured.md
+wiki --featured-date 2025-03-23  # Fetch for specific date
 
 # List article sections before extracting
 wiki -ls "Bash (shell)"

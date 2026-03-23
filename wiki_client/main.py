@@ -60,7 +60,10 @@ from wiki_client import __version__, api, render
     "--featured-date",
     metavar="DATE",
     default=None,
-    help="Fetch featured article for specific date (YYYY-MM-DD format).",
+    help=(
+        "Fetch featured article for specific date (YYYY-MM-DD format). "
+        "Implies --featured."
+    ),
 )
 @click.version_option(version=__version__, prog_name="wiki")
 def cli(
@@ -97,7 +100,12 @@ def cli(
       wiki --featured -o featured.md
       wiki --featured --ls
       wiki --featured --featured-date 2025-03-23
+      wiki --featured-date 2025-03-23
     """
+    # If featured_date is specified, automatically enable featured mode
+    if featured_date:
+        featured = True
+
     # Validate incompatible flag combinations
     if random and section_filter:
         raise click.UsageError("--random cannot be used with --section/-s")
@@ -110,9 +118,6 @@ def cli(
 
     if featured and query:
         raise click.UsageError("QUERY cannot be provided with --featured")
-
-    if featured_date and not featured:
-        raise click.UsageError("--featured-date requires --featured flag")
 
     if random and featured:
         raise click.UsageError("--random and --featured are mutually exclusive")

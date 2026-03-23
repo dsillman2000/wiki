@@ -15,6 +15,7 @@ wiki -ls "article"                  # List all sections
 wiki --search "query"               # Search Wikipedia
 wiki --random                       # Fetch random article
 wiki --featured                     # Fetch today's featured article
+wiki --featured-date DATE           # Fetch featured article for specific date
 wiki --raw "article"               # Raw Markdown output
 wiki "article" -o file.md          # Save to file
 wiki "https://wikipedia.org/wiki/..." # Direct Wikipedia URL
@@ -58,6 +59,7 @@ wiki --random -o random_article.md
 wiki --featured
 wiki --featured --ls
 wiki --featured -o featured.md
+wiki --featured-date 2025-03-23  # Fetch for specific date
 
 # Save for later
 wiki "Python" -o python.md
