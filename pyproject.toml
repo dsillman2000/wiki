@@ -47,6 +47,12 @@ source = "uv-dynamic-versioning"
 [tool.hatch.build.targets.wheel]
 packages = ["wiki_client"]
 
+[tool.hatch.build.hooks.custom]
+path = "wiki_client/hooks.py"
+
+[tool.hatch.version.raw-options]
+local-only = false
+
 [dependency-groups]
 dev = [
     "pytest>=8.0",
@@ -57,6 +63,7 @@ dev = [
 [tool.ruff]
 line-length = 88
 target-version = "py310"
+exclude = ["*/_version.py"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I"]
