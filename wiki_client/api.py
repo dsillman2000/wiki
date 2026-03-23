@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from datetime import datetime
 from urllib.parse import unquote, urlparse
 
 import httpx
@@ -728,22 +729,24 @@ def fetch_featured_article(date: str | None = None) -> dict:
         httpx.RequestError: On network failures.
     """
     # Build URL for featured article API
-    if date:
-        # Validate date format (YYYY-MM-DD)
-        parts = date.split("-")
-        if len(parts) != 3 or not all(part.isdigit() for part in parts):
-            raise ValueError(f"Invalid date format: {date}. Use YYYY-MM-DD.")
-        year, month, day = parts
+    if date is not None:
+        # Validate date format (strict YYYY-MM-DD)
+        stripped = date.strip()
+        if not stripped:
+            raise ValueError("Invalid date format: empty string. Use YYYY-MM-DD.")
+        try:
+            parsed_date = datetime.strptime(stripped, "%Y-%m-%d").date()
+        except ValueError:
+            raise ValueError(
+                f"Invalid date format: {date}. Use YYYY-MM-DD."
+            ) from None
     else:
         # Use today's date if not specified
-        from datetime import datetime
+        parsed_date = datetime.now().date()
 
-        today = datetime.now()
-        year, month, day = (
-            today.strftime("%Y"),
-            today.strftime("%m"),
-            today.strftime("%d"),
-        )
+    year = parsed_date.strftime("%Y")
+    month = parsed_date.strftime("%m")
+    day = parsed_date.strftime("%d")
 
     url = f"https://en.wikipedia.org/api/rest_v1/feed/featured/{year}/{month}/{day}"
 
@@ -757,7 +760,9 @@ def fetch_featured_article(date: str | None = None) -> dict:
 
     # Extract featured article from response
     if "tfa" not in featured_data:
-        raise ValueError("No featured article found")
+        raise ValueError(
+            f"No featured article found for {parsed_date.strftime('%Y-%m-%d')}"
+        )
 
     summary = featured_data["tfa"]
 

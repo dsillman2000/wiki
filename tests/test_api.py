@@ -910,10 +910,8 @@ class TestFetchFeaturedArticle:
     def test_fetches_todays_featured_article(self, httpx_mock: HTTPXMock) -> None:
         # Mock datetime to return a fixed date
         mock_date = datetime(2025, 3, 23)
-        with patch("datetime.datetime") as mock_datetime:
+        with patch("wiki_client.api.datetime") as mock_datetime:
             mock_datetime.now.return_value = mock_date
-
-            # Mock featured article API response
             httpx_mock.add_response(
                 url="https://en.wikipedia.org/api/rest_v1/feed/featured/2025/03/23",
                 json=SAMPLE_FEATURED_RESPONSE,
@@ -956,7 +954,7 @@ class TestFetchFeaturedArticle:
     def test_handles_missing_tfa_key(self, httpx_mock: HTTPXMock) -> None:
         # Mock datetime to return a fixed date
         mock_date = datetime(2025, 3, 23)
-        with patch("datetime.datetime") as mock_datetime:
+        with patch("wiki_client.api.datetime") as mock_datetime:
             mock_datetime.now.return_value = mock_date
 
             httpx_mock.add_response(
@@ -970,7 +968,7 @@ class TestFetchFeaturedArticle:
     def test_handles_http_errors_on_featured_api(self, httpx_mock: HTTPXMock) -> None:
         # Mock datetime to return a fixed date
         mock_date = datetime(2025, 3, 23)
-        with patch("datetime.datetime") as mock_datetime:
+        with patch("wiki_client.api.datetime") as mock_datetime:
             mock_datetime.now.return_value = mock_date
 
             httpx_mock.add_response(
@@ -984,7 +982,7 @@ class TestFetchFeaturedArticle:
     def test_handles_http_errors_on_html_fetch(self, httpx_mock: HTTPXMock) -> None:
         # Mock datetime to return a fixed date
         mock_date = datetime(2025, 3, 23)
-        with patch("datetime.datetime") as mock_datetime:
+        with patch("wiki_client.api.datetime") as mock_datetime:
             mock_datetime.now.return_value = mock_date
 
             httpx_mock.add_response(
@@ -1002,3 +1000,19 @@ class TestFetchFeaturedArticle:
         assert result["title"] == "Michael_Tritter"
         assert result["description"] == "Fictional detective on the TV series House"
         assert result["sections"] == []  # Empty sections when HTML fetch fails
+
+    @pytest.mark.parametrize(
+        "bad_date",
+        [
+            "",  # empty string
+            "   ",  # whitespace-only
+            "2025/03/23",  # wrong separator
+            "03-23-2025",  # wrong order (MM-DD-YYYY)
+            "not-a-date",  # not a date at all
+            "2025-02-30",  # impossible date
+            "2025-13-01",  # invalid month
+        ],
+    )
+    def test_rejects_invalid_date_formats(self, bad_date: str) -> None:
+        with pytest.raises(ValueError, match="Invalid date format"):
+            api.fetch_featured_article(bad_date)
