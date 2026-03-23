@@ -348,3 +348,4 @@ When filing issues, include:
 - **Use conventional commits** for clear changelog generation.
 - **Maintain test coverage** at 100% while keeping test count ≤100.
 - **Verify CI passes** before merging PRs.
+- **Do not commit local issue files.** Files matching `issue-*.md` are for local specification and should not be tracked (see `.gitignore`).

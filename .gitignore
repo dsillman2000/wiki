@@ -37,3 +37,6 @@ uv.lock
 
 # Auto-generated version file (generated at build time)
 wiki_client/_version.py
+
+# Local issue/feature specification files (not meant to be tracked)
+issue-*.md
