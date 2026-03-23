@@ -239,6 +239,13 @@ wiki --random --raw
 wiki --random -o random_article.md
 wiki --random --ls
 
+# Featured article
+wiki --featured
+wiki --featured --raw
+wiki --featured -o featured.md
+wiki --featured --ls
+wiki --featured --featured-date 2025-03-23
+
 # Raw output
 wiki --raw "Bash"
 
@@ -317,6 +324,8 @@ Benefits:
 | `-ls, --list-sections`  | List all sections in article                    |
 | `--search`              | Show search results instead of fetching         |
 | `--random`              | Fetch a random Wikipedia article                |
+| `--featured`            | Fetch today's featured Wikipedia article        |
+| `--featured-date DATE`  | Fetch featured article for specific date        |
 | `--raw`                 | Plain text/Markdown output (no Rich formatting) |
 | `-o, --output FILE`     | Write output to FILE                            |
 | `--version`             | Show version                                    |
