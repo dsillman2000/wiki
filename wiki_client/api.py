@@ -711,3 +711,54 @@ def fetch_random_article() -> dict:
         section_tree = []
 
     return {**summary, "sections": section_tree}
+
+
+def fetch_featured_article(date: str | None = None) -> dict:
+    """Fetch Wikipedia's featured article for a given date.
+
+    Args:
+        date: Optional date in YYYY-MM-DD format. Defaults to today.
+
+    Returns:
+        Full article dict with title, description, sections, etc.
+
+    Raises:
+        ValueError: If no featured article found in response.
+        httpx.HTTPStatusError: On HTTP errors.
+        httpx.RequestError: On network failures.
+    """
+    # Build URL for featured article API
+    if date:
+        # Validate date format (YYYY-MM-DD)
+        parts = date.split("-")
+        if len(parts) != 3 or not all(part.isdigit() for part in parts):
+            raise ValueError(f"Invalid date format: {date}. Use YYYY-MM-DD.")
+        year, month, day = parts
+        url = f"https://en.wikipedia.org/api/rest_v1/feed/featured/{year}/{month}/{day}"
+    else:
+        url = "https://en.wikipedia.org/api/rest_v1/feed/featured"
+
+    # Fetch featured article summary
+    with httpx.Client(
+        headers={"User-Agent": USER_AGENT}, follow_redirects=True
+    ) as client:
+        response = client.get(url)
+        response.raise_for_status()
+        featured_data = response.json()
+
+    # Extract featured article from response
+    if "tfa" not in featured_data:
+        raise ValueError("No featured article found")
+
+    summary = featured_data["tfa"]
+
+    # Fetch full HTML using title from summary
+    canonical_title = summary.get("title", "")
+    try:
+        html = _fetch_html(canonical_title)
+        flat = _parse_sections(html)
+        section_tree = _build_section_tree(flat)
+    except (httpx.HTTPStatusError, httpx.RequestError):
+        section_tree = []
+
+    return {**summary, "sections": section_tree}
