@@ -144,9 +144,15 @@ wiki -s History -s "See also" "Unix shell"
 # Fetch today's featured Wikipedia article
 wiki --featured
 
+# Extract specific section from featured article
+wiki --featured -s "Early life"
+
 # Fetch featured article for specific date
 wiki --featured --featured-date 2025-03-23
 wiki --featured-date 2025-03-23  # --featured-date implies --featured
+
+# Extract section from specific date's featured article
+wiki --featured-date 2025-03-23 -s "Storyline"
 
 # List sections of featured article
 wiki --featured --ls

@@ -59,7 +59,9 @@ wiki --random -o random_article.md
 wiki --featured
 wiki --featured --ls
 wiki --featured -o featured.md
+wiki --featured -s "Section"  # Extract section from featured article
 wiki --featured-date 2025-03-23  # Fetch for specific date
+wiki --featured-date 2025-03-23 -s "Section"  # Extract section from specific date
 
 # Save for later
 wiki "Python" -o python.md

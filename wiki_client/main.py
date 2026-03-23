@@ -99,8 +99,10 @@ def cli(
       wiki --featured --raw
       wiki --featured -o featured.md
       wiki --featured --ls
+      wiki --featured -s History
       wiki --featured --featured-date 2025-03-23
       wiki --featured-date 2025-03-23
+      wiki --featured-date 2025-03-23 -s "Early life"
     """
     # If featured_date is specified, automatically enable featured mode
     if featured_date:
@@ -109,9 +111,6 @@ def cli(
     # Validate incompatible flag combinations
     if random and section_filter:
         raise click.UsageError("--random cannot be used with --section/-s")
-
-    if featured and section_filter:
-        raise click.UsageError("--featured cannot be used with --section/-s")
 
     if random and query:
         raise click.UsageError("QUERY cannot be provided with --random")
@@ -151,6 +150,9 @@ def cli(
                 )
                 if list_sections:
                     render.render_section_list(flat_sections, page_url=page_url)
+                elif section_filter:
+                    matched = api.filter_sections(flat_sections, section_filter)
+                    render.render_sections(matched, raw=raw, page_url=page_url)
                 else:
                     render.render_article(data, raw=raw)
             elif search_mode:

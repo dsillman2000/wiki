@@ -244,8 +244,10 @@ wiki --featured
 wiki --featured --raw
 wiki --featured -o featured.md
 wiki --featured --ls
+wiki --featured -s "Early life"
 wiki --featured --featured-date 2025-03-23
 wiki --featured-date 2025-03-23
+wiki --featured-date 2025-03-23 -s "Storyline"
 
 # Raw output
 wiki --raw "Bash"
