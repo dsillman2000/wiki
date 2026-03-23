@@ -334,7 +334,7 @@ When filing issues, include:
 
 - **Run tests before committing.** `python -m pytest` must pass.
 - **Run linter before committing.** `ruff check .` must pass.
-- **Sign off issues you create** with "Written by OpenCode." on its own line.
+- **Sign off all external communications.** Any PR descriptions, PR comments, issue descriptions, or issue comments written by an agent via the `gh` CLI must be signed off with "_Written by OpenCode._" on its own line. This applies to all GitHub-facing text, not just issues.
 - **Test manually before committing** when possible.
 - **Update documentation** when changing behavior, adding features, or modifying architecture.
 - **Check existing issues** before creating new ones.
