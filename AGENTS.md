@@ -233,6 +233,12 @@ wiki -ls "Unix shell"
 # Search mode
 wiki --search "shell programming"
 
+# Random article
+wiki --random
+wiki --random --raw
+wiki --random -o random_article.md
+wiki --random --ls
+
 # Raw output
 wiki --raw "Bash"
 
@@ -310,6 +316,7 @@ Benefits:
 | `-s, --section SECTION` | Extract matching sections (fuzzy, repeatable)   |
 | `-ls, --list-sections`  | List all sections in article                    |
 | `--search`              | Show search results instead of fetching         |
+| `--random`              | Fetch a random Wikipedia article                |
 | `--raw`                 | Plain text/Markdown output (no Rich formatting) |
 | `-o, --output FILE`     | Write output to FILE                            |
 | `--version`             | Show version                                    |
@@ -341,3 +348,4 @@ When filing issues, include:
 - **Use conventional commits** for clear changelog generation.
 - **Maintain test coverage** at 100% while keeping test count ≤100.
 - **Verify CI passes** before merging PRs.
+- **Do not commit local issue files.** Files matching `issue-*.md` are for local specification and should not be tracked (see `.gitignore`).

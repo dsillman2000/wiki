@@ -14,6 +14,7 @@ When performing Wikipedia research, use the `wiki` CLI first. It fetches clean c
 wiki "article name"           # Fetch full article
 wiki -s "Section" "article"  # Extract specific section
 wiki --search "query"        # Search mode
+wiki --random                # Fetch random article
 wiki -ls "article"           # List all sections
 wiki --raw "article"         # Raw Markdown output
 wiki "article" -o file.md    # Save to file
@@ -31,6 +32,7 @@ wiki "https://en.wikipedia.org/wiki/..." # Direct URL
 - Prefer section extraction over full articles for targeted information
 - Use `--raw` for plain Markdown output when piping or saving
 - Use `--search` to discover relevant articles before fetching
+- Use `--random` for serendipitous discovery or testing
 - Use `-o file.md` to save output for later reference
 - Use `-ls` to preview article sections before extracting
 - Cite source URLs in research outputs
@@ -47,7 +49,7 @@ Wikipedia content is licensed under [CC BY-SA 3.0](https://creativecommons.org/l
 - Wikipedia only (no other wikis like Wikitech, etc.)
 - Requires internet access
 - Section matching uses fuzzy matching (e.g., `-s "hist"` matches "History")
-- `--featured`, `--random`, `--news` modes not yet implemented
+- `--featured`, `--news` modes not yet implemented
 
 ## Common Research Tasks
 
@@ -60,6 +62,11 @@ wiki -s History "Unix shell"
 
 # Find related articles
 wiki --search "functional programming"
+
+# Get random article for serendipitous discovery
+wiki --random
+wiki --random --raw
+wiki --random -o random_article.md
 
 # List article sections before extracting
 wiki -ls "Bash (shell)"

@@ -679,3 +679,35 @@ def filter_sections(sections: list[dict], queries: tuple[str, ...]) -> list[dict
                 break
 
     return [sections[i] for i in ordered]
+
+
+def fetch_random_article() -> dict:
+    """Fetch a random Wikipedia article.
+
+    Returns:
+        Full article dict with title, description, sections, etc.
+
+    Raises:
+        httpx.HTTPStatusError: On HTTP errors.
+        httpx.RequestError: On network failures.
+    """
+    # Fetch random summary
+    with httpx.Client(
+        headers={"User-Agent": USER_AGENT}, follow_redirects=True
+    ) as client:
+        response = client.get(
+            "https://en.wikipedia.org/api/rest_v1/page/random/summary"
+        )
+        response.raise_for_status()
+        summary = response.json()
+
+    # Fetch full HTML using title from summary
+    canonical_title = summary.get("title", "")
+    try:
+        html = _fetch_html(canonical_title)
+        flat = _parse_sections(html)
+        section_tree = _build_section_tree(flat)
+    except (httpx.HTTPStatusError, httpx.RequestError):
+        section_tree = []
+
+    return {**summary, "sections": section_tree}
