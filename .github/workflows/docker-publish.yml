@@ -66,21 +66,21 @@ jobs:
           tags: |
             type=ref,event=branch
             type=semver,pattern={{version}},value=${{ github.event_name != 'pull_request' && steps.gitversion.outputs.semVer || '' }}
-            type=sha,prefix=sha-,format=long
+             type=sha,prefix=sha-,format=long
 
-       - name: Build and push
-         id: build
-         uses: docker/build-push-action@v5
-         with:
-           context: .
-           push: ${{ github.event_name != 'pull_request' }}
-           load: ${{ github.event_name == 'pull_request' }}
-           build-args: |
-             PACKAGE_VERSION=${{ github.event_name != 'pull_request' && steps.gitversion.outputs.semVer || '0.0.0.dev0' }}
-           tags: ${{ steps.meta.outputs.tags }}
-           labels: ${{ steps.meta.outputs.labels }}
-           cache-from: type=gha
-           cache-to: type=gha,mode=max
+      - name: Build and push
+        id: build
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: ${{ github.event_name != 'pull_request' }}
+          load: ${{ github.event_name == 'pull_request' }}
+          build-args: |
+            PACKAGE_VERSION=${{ github.event_name != 'pull_request' && steps.gitversion.outputs.semVer || '0.0.0.dev0' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
       - name: Test image (PR only)
         if: github.event_name == 'pull_request'
