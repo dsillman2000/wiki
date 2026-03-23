@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+from datetime import datetime
+from unittest.mock import patch
+
 import httpx
 import pytest
 from pytest_httpx import HTTPXMock
@@ -905,18 +908,23 @@ SAMPLE_FEATURED_HTML = """
 
 class TestFetchFeaturedArticle:
     def test_fetches_todays_featured_article(self, httpx_mock: HTTPXMock) -> None:
-        # Mock featured article API response
-        httpx_mock.add_response(
-            url="https://en.wikipedia.org/api/rest_v1/feed/featured",
-            json=SAMPLE_FEATURED_RESPONSE,
-        )
-        # Mock HTML response for the article
-        httpx_mock.add_response(
-            url="https://en.wikipedia.org/api/rest_v1/page/html/Michael_Tritter",
-            text=SAMPLE_FEATURED_HTML,
-        )
+        # Mock datetime to return a fixed date
+        mock_date = datetime(2025, 3, 23)
+        with patch("datetime.datetime") as mock_datetime:
+            mock_datetime.now.return_value = mock_date
 
-        result = api.fetch_featured_article()
+            # Mock featured article API response
+            httpx_mock.add_response(
+                url="https://en.wikipedia.org/api/rest_v1/feed/featured/2025/03/23",
+                json=SAMPLE_FEATURED_RESPONSE,
+            )
+            # Mock HTML response for the article
+            httpx_mock.add_response(
+                url="https://en.wikipedia.org/api/rest_v1/page/html/Michael_Tritter",
+                text=SAMPLE_FEATURED_HTML,
+            )
+
+            result = api.fetch_featured_article()
 
         assert result["title"] == "Michael_Tritter"
         assert result["description"] == "Fictional detective on the TV series House"
@@ -946,34 +954,49 @@ class TestFetchFeaturedArticle:
         assert len(result["sections"]) == 3
 
     def test_handles_missing_tfa_key(self, httpx_mock: HTTPXMock) -> None:
-        httpx_mock.add_response(
-            url="https://en.wikipedia.org/api/rest_v1/feed/featured",
-            json={},  # Empty response without tfa key
-        )
+        # Mock datetime to return a fixed date
+        mock_date = datetime(2025, 3, 23)
+        with patch("datetime.datetime") as mock_datetime:
+            mock_datetime.now.return_value = mock_date
 
-        with pytest.raises(ValueError, match="No featured article found"):
-            api.fetch_featured_article()
+            httpx_mock.add_response(
+                url="https://en.wikipedia.org/api/rest_v1/feed/featured/2025/03/23",
+                json={},  # Empty response without tfa key
+            )
+
+            with pytest.raises(ValueError, match="No featured article found"):
+                api.fetch_featured_article()
 
     def test_handles_http_errors_on_featured_api(self, httpx_mock: HTTPXMock) -> None:
-        httpx_mock.add_response(
-            url="https://en.wikipedia.org/api/rest_v1/feed/featured",
-            status_code=404,
-        )
+        # Mock datetime to return a fixed date
+        mock_date = datetime(2025, 3, 23)
+        with patch("datetime.datetime") as mock_datetime:
+            mock_datetime.now.return_value = mock_date
 
-        with pytest.raises(httpx.HTTPStatusError):
-            api.fetch_featured_article()
+            httpx_mock.add_response(
+                url="https://en.wikipedia.org/api/rest_v1/feed/featured/2025/03/23",
+                status_code=404,
+            )
+
+            with pytest.raises(httpx.HTTPStatusError):
+                api.fetch_featured_article()
 
     def test_handles_http_errors_on_html_fetch(self, httpx_mock: HTTPXMock) -> None:
-        httpx_mock.add_response(
-            url="https://en.wikipedia.org/api/rest_v1/feed/featured",
-            json=SAMPLE_FEATURED_RESPONSE,
-        )
-        httpx_mock.add_response(
-            url="https://en.wikipedia.org/api/rest_v1/page/html/Michael_Tritter",
-            status_code=500,
-        )
+        # Mock datetime to return a fixed date
+        mock_date = datetime(2025, 3, 23)
+        with patch("datetime.datetime") as mock_datetime:
+            mock_datetime.now.return_value = mock_date
 
-        result = api.fetch_featured_article()
+            httpx_mock.add_response(
+                url="https://en.wikipedia.org/api/rest_v1/feed/featured/2025/03/23",
+                json=SAMPLE_FEATURED_RESPONSE,
+            )
+            httpx_mock.add_response(
+                url="https://en.wikipedia.org/api/rest_v1/page/html/Michael_Tritter",
+                status_code=500,
+            )
+
+            result = api.fetch_featured_article()
 
         # Should still return summary data even if HTML fetch fails
         assert result["title"] == "Michael_Tritter"

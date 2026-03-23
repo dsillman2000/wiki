@@ -734,9 +734,18 @@ def fetch_featured_article(date: str | None = None) -> dict:
         if len(parts) != 3 or not all(part.isdigit() for part in parts):
             raise ValueError(f"Invalid date format: {date}. Use YYYY-MM-DD.")
         year, month, day = parts
-        url = f"https://en.wikipedia.org/api/rest_v1/feed/featured/{year}/{month}/{day}"
     else:
-        url = "https://en.wikipedia.org/api/rest_v1/feed/featured"
+        # Use today's date if not specified
+        from datetime import datetime
+
+        today = datetime.now()
+        year, month, day = (
+            today.strftime("%Y"),
+            today.strftime("%m"),
+            today.strftime("%d"),
+        )
+
+    url = f"https://en.wikipedia.org/api/rest_v1/feed/featured/{year}/{month}/{day}"
 
     # Fetch featured article summary
     with httpx.Client(
