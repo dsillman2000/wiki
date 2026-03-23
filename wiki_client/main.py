@@ -46,6 +46,11 @@ from wiki_client import __version__, api, render
     metavar="FILE",
     help="Write output to FILE in plain-text/Markdown format.",
 )
+@click.option(
+    "--random",
+    is_flag=True,
+    help="Fetch a random Wikipedia article.",
+)
 @click.version_option(version=__version__, prog_name="wiki")
 def cli(
     query: tuple[str, ...],
@@ -54,6 +59,7 @@ def cli(
     list_sections: bool,
     section_filter: tuple[str, ...],
     output: str | None,
+    random: bool,
 ) -> None:
     """Fetch a Wikipedia article and display it in the terminal.
 
@@ -69,9 +75,20 @@ def cli(
       wiki -s History "Unix shell"
       wiki "https://en.wikipedia.org/wiki/Unix_shell"
       wiki -o article.md "Unix shell"
+      wiki --random
+      wiki --random --raw
+      wiki --random -o random_article.md
+      wiki --random --ls
     """
-    if not query:
-        raise click.UsageError("QUERY is required.")
+    # Validate incompatible flag combinations
+    if random and section_filter:
+        raise click.UsageError("--random cannot be used with --section/-s")
+
+    if random and query:
+        raise click.UsageError("QUERY cannot be provided with --random")
+
+    if not random and not query:
+        raise click.UsageError("QUERY is required (or use --random).")
 
     query_str = " ".join(query)
 
@@ -81,7 +98,17 @@ def cli(
 
     def _run() -> None:
         try:
-            if search_mode:
+            if random:
+                data = api.fetch_random_article()
+                flat_sections = api.flatten_sections(data.get("sections", []))
+                page_url = (
+                    data.get("content_urls", {}).get("desktop", {}).get("page", "")
+                )
+                if list_sections:
+                    render.render_section_list(flat_sections, page_url=page_url)
+                else:
+                    render.render_article(data, raw=raw)
+            elif search_mode:
                 results = api.search(query_str)
                 render.render_search_results(results, query=query_str)
             elif list_sections or section_filter:
@@ -102,13 +129,24 @@ def cli(
         except ValueError as exc:
             raise click.ClickException(str(exc)) from exc
         except httpx.HTTPStatusError as exc:
-            raise click.ClickException(
-                f"HTTP error {exc.response.status_code} fetching article: {query_str!r}"
-            ) from exc
+            if random:
+                raise click.ClickException(
+                    f"HTTP error {exc.response.status_code} fetching random article"
+                ) from exc
+            else:
+                raise click.ClickException(
+                    f"HTTP error {exc.response.status_code} fetching article: "
+                    f"{query_str!r}"
+                ) from exc
         except httpx.RequestError as exc:
-            raise click.ClickException(
-                f"Network error fetching article: {exc}"
-            ) from exc
+            if random:
+                raise click.ClickException(
+                    f"Network error fetching random article: {exc}"
+                ) from exc
+            else:
+                raise click.ClickException(
+                    f"Network error fetching article: {exc}"
+                ) from exc
 
     if output:
         with open(output, "w") as fh:

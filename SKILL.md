@@ -13,6 +13,7 @@ wiki "article"                       # Fetch article
 wiki -s "Section" "article"          # Extract section (fuzzy match)
 wiki -ls "article"                  # List all sections
 wiki --search "query"               # Search Wikipedia
+wiki --random                       # Fetch random article
 wiki --raw "article"               # Raw Markdown output
 wiki "article" -o file.md          # Save to file
 wiki "https://wikipedia.org/wiki/..." # Direct Wikipedia URL
@@ -47,6 +48,11 @@ wiki -ls "Bash (Unix shell)"
 # Search for articles
 wiki --search "functional programming"
 
+# Get a random article
+wiki --random
+wiki --random --raw
+wiki --random -o random_article.md
+
 # Save for later
 wiki "Python" -o python.md
 
@@ -68,4 +74,4 @@ wiki "https://en.wikipedia.org/wiki/Python_(programming_language)"
 - Wikipedia only (English by default)
 - Requires internet access
 - Section matching uses fuzzy matching
-- `--featured`, `--random`, `--news` not yet implemented
+- `--featured`, `--news` not yet implemented
