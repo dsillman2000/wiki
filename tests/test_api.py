@@ -1019,6 +1019,39 @@ class TestFetchFeaturedArticle:
 
 
 # ---------------------------------------------------------------------------
+# _parse_date (shared date parsing for all feed functions)
+# ---------------------------------------------------------------------------
+
+
+class TestParseDate:
+    @pytest.mark.parametrize(
+        "bad_date",
+        [
+            "",  # empty string
+            "   ",  # whitespace-only
+            "2025/03/23",  # wrong separator
+            "03-23-2025",  # wrong order (MM-DD-YYYY)
+            "not-a-date",  # not a date at all
+            "2025-02-30",  # impossible date
+            "2025-13-01",  # invalid month
+        ],
+    )
+    def test_rejects_invalid_date_formats(self, bad_date: str) -> None:
+        with pytest.raises(ValueError, match="Invalid date format"):
+            api._parse_date(bad_date)
+
+    def test_parses_valid_date(self) -> None:
+        result = api._parse_date("2025-03-23")
+        assert result == ("2025", "03", "23")
+
+    def test_parses_none_returns_utc_date(self) -> None:
+        result = api._parse_date(None)
+        assert isinstance(result[0], str)  # year
+        assert isinstance(result[1], str)  # month
+        assert isinstance(result[2], str)  # day
+
+
+# ---------------------------------------------------------------------------
 # fetch_most_read
 # ---------------------------------------------------------------------------
 
@@ -1109,21 +1142,6 @@ class TestFetchMostRead:
             )
             with pytest.raises(httpx.HTTPStatusError):
                 api.fetch_most_read()
-
-    @pytest.mark.parametrize(
-        "bad_date",
-        [
-            "",
-            "   ",
-            "2026/03/23",
-            "not-a-date",
-            "2026-02-30",
-            "2026-13-01",
-        ],
-    )
-    def test_rejects_invalid_date_formats(self, bad_date: str) -> None:
-        with pytest.raises(ValueError, match="Invalid date format"):
-            api.fetch_most_read(bad_date)
 
 
 # ---------------------------------------------------------------------------
@@ -1278,17 +1296,3 @@ class TestFetchNews:
         assert "<p>" not in result[0]["story"]
         assert "<b>" not in result[0]["story"]
         assert "major event" in result[0]["story"]
-
-    @pytest.mark.parametrize(
-        "bad_date",
-        [
-            "2026/03/24",
-            "03-24-2026",
-            "not-a-date",
-            "2026-02-30",
-            "2026-13-01",
-        ],
-    )
-    def test_rejects_invalid_date_formats(self, bad_date: str) -> None:
-        with pytest.raises(ValueError, match="Invalid date format"):
-            api.fetch_news(bad_date)
