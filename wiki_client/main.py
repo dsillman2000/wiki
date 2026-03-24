@@ -28,7 +28,11 @@ from wiki_client import __version__, api, render
     "--ls",
     "list_sections",
     is_flag=True,
-    help="List all sections in the article.",
+    help=(
+        "List all sections in the article. "
+        "For --most-read, show a compact list of article titles. "
+        "For --news, list story links without full story text."
+    ),
 )
 @click.option(
     "--section",
@@ -160,6 +164,9 @@ def cli(
 
     if news_mode and query:
         raise click.UsageError("QUERY cannot be provided with --news")
+
+    if news_mode and section_filter:
+        raise click.UsageError("--news cannot be used with --section/-s")
 
     if random and featured:
         raise click.UsageError("--random and --featured are mutually exclusive")

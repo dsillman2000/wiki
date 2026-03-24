@@ -89,7 +89,7 @@ pip install -e ".[dev]"  # Install with dev dependencies
 ### Verification
 
 ```bash
-python -m pytest     # Run test suite (~100 tests)
+python -m pytest     # Run test suite
 ruff check          # Run linter
 ruff format --check # Check formatting
 ```
@@ -274,7 +274,7 @@ wiki/
 ├── tests/                # Test suite
 │   ├── test_api.py       # API tests
 │   └── test_render.py    # Render tests
-├── wiki_cli/             # Main package
+├── wiki_client/          # Main package
 │   ├── __init__.py       # Package init
 │   ├── __version__.py    # Version info
 │   ├── api.py            # Wikipedia API client
