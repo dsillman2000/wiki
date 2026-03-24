@@ -739,6 +739,51 @@ def _parse_date(date: str | None) -> tuple[str, str, str]:
     return parsed.strftime("%Y"), parsed.strftime("%m"), parsed.strftime("%d")
 
 
+def fetch_news(date: str | None = None) -> list[dict]:
+    """Fetch Wikipedia's 'In the news' stories for a given date.
+
+    Uses the same Wikipedia feed API endpoint as :func:`fetch_featured_article`
+    and extracts the ``news`` field.
+
+    Args:
+        date: Optional date in YYYY-MM-DD format. Defaults to today.
+              Note: news is only available for the current UTC day; historical
+              dates will have an empty ``news`` field and raise a ValueError.
+
+    Returns:
+        List of news story dicts, each containing:
+            - ``story``: plain-text story summary (HTML stripped)
+            - ``links``: list of related article dicts (title, extract, etc.)
+
+    Raises:
+        ValueError: If the date format is invalid or no news is available.
+        httpx.HTTPStatusError: On HTTP errors.
+        httpx.RequestError: On network failures.
+    """
+    year, month, day = _parse_date(date)
+    url = f"https://en.wikipedia.org/api/rest_v1/feed/featured/{year}/{month}/{day}"
+
+    with httpx.Client(
+        headers={"User-Agent": USER_AGENT}, follow_redirects=True
+    ) as client:
+        response = client.get(url)
+        response.raise_for_status()
+        data = response.json()
+
+    raw_news = data.get("news", [])
+    if not raw_news:
+        raise ValueError(f"No news available for {year}-{month}-{day}")
+
+    result = []
+    for story in raw_news:
+        story_html = story.get("story", "")
+        story_text = _strip_html(story_html)
+        links = story.get("links", [])
+        result.append({"story": story_text, "links": links})
+
+    return result
+
+
 def fetch_featured_article(date: str | None = None) -> dict:
     """Fetch Wikipedia's featured article for a given date.
 
@@ -766,9 +811,7 @@ def fetch_featured_article(date: str | None = None) -> dict:
 
     # Extract featured article from response
     if "tfa" not in featured_data:
-        raise ValueError(
-            f"No featured article found for {year}-{month}-{day}"
-        )
+        raise ValueError(f"No featured article found for {year}-{month}-{day}")
 
     summary = featured_data["tfa"]
 
@@ -819,9 +862,7 @@ def fetch_most_read(date: str | None = None) -> dict:
     return feed_data["mostread"]
 
 
-def filter_most_read_articles(
-    articles: list[dict], queries: tuple[str, ...]
-) -> str:
+def filter_most_read_articles(articles: list[dict], queries: tuple[str, ...]) -> str:
     """Find the first most-read article whose title fuzzy-matches a query.
 
     Matching is case-insensitive substring after normalising to lowercase

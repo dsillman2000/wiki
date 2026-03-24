@@ -339,3 +339,90 @@ class TestRenderSectionsWithTables:
         out = _capture(render.render_article, ARTICLE_WITH_TABLE)
         assert "Year" in out
         assert "1997" in out
+
+
+# ---------------------------------------------------------------------------
+# render_news and render_news_list
+# ---------------------------------------------------------------------------
+
+
+SAMPLE_NEWS = [
+    {
+        "story": "A major event occurred today in Berlin.",
+        "links": [
+            {"title": "Berlin", "extract": "Berlin is the capital of Germany."},
+            {"title": "Germany", "extract": "Germany is a country in Europe."},
+        ],
+    },
+    {
+        "story": "Scientists announced a new discovery.",
+        "links": [
+            {"title": "Science", "extract": "Science is a systematic enterprise."}
+        ],
+    },
+]
+
+
+class TestRenderNews:
+    def test_raw_output_shows_stories(self, capsys) -> None:
+        render.render_news(SAMPLE_NEWS, raw=True)
+        out = capsys.readouterr().out
+        assert "1." in out
+        assert "major event" in out
+        assert "2." in out
+        assert "Scientists" in out
+
+    def test_raw_output_shows_article_titles(self, capsys) -> None:
+        render.render_news(SAMPLE_NEWS, raw=True)
+        out = capsys.readouterr().out
+        assert "[Berlin]" in out
+        assert "[Germany]" in out
+        assert "[Science]" in out
+
+    def test_rich_output_shows_stories(self) -> None:
+        out = _capture(render.render_news, SAMPLE_NEWS)
+        assert "major event" in out
+        assert "Scientists" in out
+
+    def test_rich_output_shows_article_titles(self) -> None:
+        out = _capture(render.render_news, SAMPLE_NEWS)
+        assert "[Berlin]" in out
+        assert "[Science]" in out
+
+    def test_empty_news_raw_shows_message(self, capsys) -> None:
+        render.render_news([], raw=True)
+        assert "No news" in capsys.readouterr().out
+
+    def test_empty_news_rich_shows_message(self) -> None:
+        assert "No news" in _capture(render.render_news, [])
+
+    def test_story_without_links_raw(self, capsys) -> None:
+        render.render_news([{"story": "Something happened.", "links": []}], raw=True)
+        out = capsys.readouterr().out
+        assert "Something happened." in out
+
+    def test_underscores_in_title_replaced(self, capsys) -> None:
+        news = [{"story": "Event.", "links": [{"title": "New_York_City"}]}]
+        render.render_news(news, raw=True)
+        out = capsys.readouterr().out
+        assert "[New York City]" in out
+
+
+class TestRenderNewsList:
+    def test_shows_linked_article_titles(self) -> None:
+        out = _capture(render.render_news_list, SAMPLE_NEWS)
+        assert "Berlin" in out
+        assert "Germany" in out
+        assert "Science" in out
+
+    def test_shows_story_numbers(self) -> None:
+        out = _capture(render.render_news_list, SAMPLE_NEWS)
+        assert "1." in out
+        assert "2." in out
+
+    def test_empty_news_shows_message(self) -> None:
+        assert "No news" in _capture(render.render_news_list, [])
+
+    def test_story_without_links_shows_placeholder(self) -> None:
+        out = _capture(render.render_news_list, [{"story": "Event.", "links": []}])
+        assert "no linked articles" in out

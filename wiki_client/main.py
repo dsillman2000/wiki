@@ -79,6 +79,18 @@ from wiki_client import __version__, api, render
         "Implies --most-read."
     ),
 )
+@click.option(
+    "--news",
+    "news_mode",
+    is_flag=True,
+    help="Fetch today's Wikipedia 'In the news' stories.",
+)
+@click.option(
+    "--news-date",
+    metavar="DATE",
+    default=None,
+    help=("Fetch news stories for specific date (YYYY-MM-DD format). Implies --news."),
+)
 @click.version_option(version=__version__, prog_name="wiki")
 def cli(
     query: tuple[str, ...],
@@ -92,6 +104,8 @@ def cli(
     featured_date: str | None,
     most_read: bool,
     most_read_date: str | None,
+    news_mode: bool,
+    news_date: str | None,
 ) -> None:
     """Fetch a Wikipedia article and display it in the terminal.
 
@@ -125,6 +139,11 @@ def cli(
       wiki --most-read --ls
       wiki --most-read -s "Eiffel Tower"
       wiki --most-read-date 2026-03-23
+      wiki --news
+      wiki --news --raw
+      wiki --news -o news.md
+      wiki --news --ls
+      wiki --news-date 2026-03-23
     """
     # If featured_date is specified, automatically enable featured mode
     if featured_date:
@@ -133,6 +152,10 @@ def cli(
     # If most_read_date is specified, automatically enable most_read mode
     if most_read_date:
         most_read = True
+
+    # If news_date is specified, automatically enable news mode
+    if news_date:
+        news_mode = True
 
     # Validate incompatible flag combinations
     if random and section_filter:
@@ -147,15 +170,30 @@ def cli(
     if most_read and query:
         raise click.UsageError("QUERY cannot be provided with --most-read")
 
+    if news_mode and query:
+        raise click.UsageError("QUERY cannot be provided with --news")
+
     if random and featured:
         raise click.UsageError("--random and --featured are mutually exclusive")
 
     if featured and most_read:
         raise click.UsageError("--featured and --most-read are mutually exclusive")
 
-    if not random and not featured and not most_read and not query:
+    if featured and news_mode:
+        raise click.UsageError("--featured and --news are mutually exclusive")
+
+    if random and most_read:
+        raise click.UsageError("--random and --most-read are mutually exclusive")
+
+    if random and news_mode:
+        raise click.UsageError("--random and --news are mutually exclusive")
+
+    if most_read and news_mode:
+        raise click.UsageError("--most-read and --news are mutually exclusive")
+
+    if not random and not featured and not most_read and not news_mode and not query:
         raise click.UsageError(
-            "QUERY is required (or use --random, --featured, or --most-read)."
+            "QUERY is required (or use --random, --featured, --most-read, or --news)."
         )
 
     query_str = " ".join(query)
@@ -203,6 +241,12 @@ def cli(
                     render.render_most_read(
                         most_read_data, raw=raw, compact=list_sections
                     )
+            elif news_mode:
+                news = api.fetch_news(news_date)
+                if list_sections:
+                    render.render_news_list(news)
+                else:
+                    render.render_news(news, raw=raw)
             elif search_mode:
                 results = api.search(query_str)
                 render.render_search_results(results, query=query_str)
@@ -236,6 +280,10 @@ def cli(
                 raise click.ClickException(
                     f"HTTP error {exc.response.status_code} fetching most-read articles"
                 ) from exc
+            elif news_mode:
+                raise click.ClickException(
+                    f"HTTP error {exc.response.status_code} fetching news"
+                ) from exc
             else:
                 raise click.ClickException(
                     f"HTTP error {exc.response.status_code} fetching article: "
@@ -253,6 +301,10 @@ def cli(
             elif most_read:
                 raise click.ClickException(
                     f"Network error fetching most-read articles: {exc}"
+                ) from exc
+            elif news_mode:
+                raise click.ClickException(
+                    f"Network error fetching news: {exc}"
                 ) from exc
             else:
                 raise click.ClickException(

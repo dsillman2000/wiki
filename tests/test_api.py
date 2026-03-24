@@ -1017,6 +1017,7 @@ class TestFetchFeaturedArticle:
         with pytest.raises(ValueError, match="Invalid date format"):
             api.fetch_featured_article(bad_date)
 
+
 # ---------------------------------------------------------------------------
 # fetch_most_read
 # ---------------------------------------------------------------------------
@@ -1033,9 +1034,7 @@ SAMPLE_MOST_READ_RESPONSE = {
                 "normalizedtitle": "Eiffel Tower",
                 "extract": "The Eiffel Tower is a wrought-iron lattice tower.",
                 "content_urls": {
-                    "desktop": {
-                        "page": "https://en.wikipedia.org/wiki/Eiffel_Tower"
-                    }
+                    "desktop": {"page": "https://en.wikipedia.org/wiki/Eiffel_Tower"}
                 },
             },
             {
@@ -1077,9 +1076,7 @@ class TestFetchMostRead:
         assert result["articles"][0]["normalizedtitle"] == "Eiffel Tower"
         assert result["articles"][0]["views"] == 1517128
 
-    def test_fetches_most_read_for_specific_date(
-        self, httpx_mock: HTTPXMock
-    ) -> None:
+    def test_fetches_most_read_for_specific_date(self, httpx_mock: HTTPXMock) -> None:
         httpx_mock.add_response(
             url="https://en.wikipedia.org/api/rest_v1/feed/featured/2026/03/23",
             json=SAMPLE_MOST_READ_RESPONSE,
@@ -1120,6 +1117,7 @@ class TestFetchMostRead:
             "   ",
             "2026/03/23",
             "not-a-date",
+            "2026-02-30",
             "2026-13-01",
         ],
     )
@@ -1183,3 +1181,114 @@ class TestFilterMostReadArticles:
         )
         # Python is rank 2 and Ada Lovelace is rank 3; first match in list order wins
         assert result == "Python (programming language)"
+
+
+# ---------------------------------------------------------------------------
+# fetch_news
+# ---------------------------------------------------------------------------
+
+
+SAMPLE_NEWS_RESPONSE = {
+    "news": [
+        {
+            "story": (
+                "<p>A <b>major event</b> occurred today in "
+                "<a href='/wiki/Berlin'>Berlin</a>.</p>"
+            ),
+            "links": [
+                {
+                    "title": "Berlin",
+                    "extract": "Berlin is the capital of Germany.",
+                },
+                {
+                    "title": "Germany",
+                    "extract": "Germany is a country in Europe.",
+                },
+            ],
+        },
+        {
+            "story": "<p>Scientists announced a new discovery.</p>",
+            "links": [
+                {
+                    "title": "Science",
+                    "extract": "Science is a systematic enterprise.",
+                }
+            ],
+        },
+    ]
+}
+
+SAMPLE_NEWS_RESPONSE_EMPTY = {}
+
+
+class TestFetchNews:
+    def test_fetches_todays_news(self, httpx_mock: HTTPXMock) -> None:
+        mock_date = datetime(2026, 3, 24)
+        with patch("wiki_client.api.datetime") as mock_datetime:
+            mock_datetime.now.return_value = mock_date
+            httpx_mock.add_response(
+                url="https://en.wikipedia.org/api/rest_v1/feed/featured/2026/03/24",
+                json=SAMPLE_NEWS_RESPONSE,
+            )
+            result = api.fetch_news()
+
+        assert len(result) == 2
+        assert result[0]["story"] == "A major event occurred today in Berlin."
+        assert len(result[0]["links"]) == 2
+        assert result[0]["links"][0]["title"] == "Berlin"
+
+    def test_fetches_news_for_specific_date(self, httpx_mock: HTTPXMock) -> None:
+        httpx_mock.add_response(
+            url="https://en.wikipedia.org/api/rest_v1/feed/featured/2026/03/24",
+            json=SAMPLE_NEWS_RESPONSE,
+        )
+        result = api.fetch_news("2026-03-24")
+
+        assert len(result) == 2
+        assert result[1]["links"][0]["title"] == "Science"
+
+    def test_raises_value_error_when_no_news(self, httpx_mock: HTTPXMock) -> None:
+        mock_date = datetime(2026, 3, 24)
+        with patch("wiki_client.api.datetime") as mock_datetime:
+            mock_datetime.now.return_value = mock_date
+            httpx_mock.add_response(
+                url="https://en.wikipedia.org/api/rest_v1/feed/featured/2026/03/24",
+                json=SAMPLE_NEWS_RESPONSE_EMPTY,
+            )
+            with pytest.raises(ValueError, match="No news available"):
+                api.fetch_news()
+
+    def test_handles_http_error(self, httpx_mock: HTTPXMock) -> None:
+        mock_date = datetime(2026, 3, 24)
+        with patch("wiki_client.api.datetime") as mock_datetime:
+            mock_datetime.now.return_value = mock_date
+            httpx_mock.add_response(
+                url="https://en.wikipedia.org/api/rest_v1/feed/featured/2026/03/24",
+                status_code=404,
+            )
+            with pytest.raises(httpx.HTTPStatusError):
+                api.fetch_news()
+
+    def test_strips_html_from_story(self, httpx_mock: HTTPXMock) -> None:
+        httpx_mock.add_response(
+            url="https://en.wikipedia.org/api/rest_v1/feed/featured/2026/03/24",
+            json=SAMPLE_NEWS_RESPONSE,
+        )
+        result = api.fetch_news("2026-03-24")
+        assert "<p>" not in result[0]["story"]
+        assert "<b>" not in result[0]["story"]
+        assert "major event" in result[0]["story"]
+
+    @pytest.mark.parametrize(
+        "bad_date",
+        [
+            "2026/03/24",
+            "03-24-2026",
+            "not-a-date",
+            "2026-02-30",
+            "2026-13-01",
+        ],
+    )
+    def test_rejects_invalid_date_formats(self, bad_date: str) -> None:
+        with pytest.raises(ValueError, match="Invalid date format"):
+            api.fetch_news(bad_date)

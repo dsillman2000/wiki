@@ -255,6 +255,75 @@ def render_section_list(sections: list[dict], *, page_url: str = "") -> None:
         console.print(Markdown(f"*Source: <{page_url}>*"))
 
 
+def render_news(news: list[dict], *, raw: bool = False) -> None:
+    """Render Wikipedia 'In the news' stories to the terminal.
+
+    Outputs a numbered list of stories; each story shows the plain-text
+    summary followed by the titles of its linked articles in brackets so
+    that users can copy a title for a follow-up ``wiki "Title"`` invocation.
+
+    Args:
+        news: List of news story dicts as returned by
+              :func:`~wiki_client.api.fetch_news`.
+        raw:  When *True*, emit plain text instead of Rich markup.
+    """
+    if not news:
+        if raw:
+            print("No news stories available.")
+        else:
+            console.print("[yellow]No news stories available.[/yellow]")
+        return
+
+    for idx, story in enumerate(news, start=1):
+        story_text = story.get("story", "")
+        links = story.get("links", [])
+        link_titles = [
+            link.get("title", "").replace("_", " ")
+            for link in links
+            if link.get("title")
+        ]
+        # Double-space between adjacent bracket groups aids visual separation
+        titles_str = "  ".join(f"[{t}]" for t in link_titles)
+
+        if raw:
+            print(f"{idx}. {story_text}")
+            if link_titles:
+                print(f"   {titles_str}")
+            print()
+        else:
+            console.print(f"[bold]{idx}.[/bold] {story_text}")
+            if link_titles:
+                console.print(f"   [cyan]{titles_str}[/cyan]")
+            console.print()
+
+
+def render_news_list(news: list[dict]) -> None:
+    """Render a summary list of news stories (table-of-contents style).
+
+    Shows each story's index and its linked article titles, omitting the
+    full story text.  Intended for the ``--ls`` flag.
+
+    Args:
+        news: List of news story dicts as returned by
+              :func:`~wiki_client.api.fetch_news`.
+    """
+    if not news:
+        console.print("[yellow]No news stories available.[/yellow]")
+        return
+
+    for idx, story in enumerate(news, start=1):
+        links = story.get("links", [])
+        link_titles = [
+            link.get("title", "").replace("_", " ")
+            for link in links
+            if link.get("title")
+        ]
+        if link_titles:
+            console.print(f"[bold]{idx}.[/bold] {', '.join(link_titles)}")
+        else:
+            console.print(f"[bold]{idx}.[/bold] (no linked articles)")
+
+
 def render_sections(
     sections: list[dict], *, raw: bool = False, page_url: str = ""
 ) -> None:
