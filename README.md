@@ -74,7 +74,7 @@ wiki "Unix shell"
 Or use the provided install script:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/dsillman2000/wiki-client/main/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/dsillman2000/wiki-client/main/install.sh | bash
 ```
 
 ### Install AI Agent Skills
@@ -85,28 +85,83 @@ The wiki CLI includes skill files for various AI agents. Install them directly f
 
 Use the unified installer script with the `-a` flag to specify the agent:
 
+<details>
+<summary>OpenCode</summary>
+
 ```bash
-# Install for OpenCode
-curl -fsSL https://raw.githubusercontent.com/dsillman2000/wiki-client/main/install/skill.sh | sh -s -- -a opencode
+curl -fsSL https://raw.githubusercontent.com/dsillman2000/wiki-client/main/install/skill.sh | bash -s -- -a opencode
+```
 
-# Install for GitHub Copilot
-curl -fsSL https://raw.githubusercontent.com/dsillman2000/wiki-client/main/install/skill.sh | sh -s -- -a copilot
+</details>
 
-# Install for Claude
-curl -fsSL https://raw.githubusercontent.com/dsillman2000/wiki-client/main/install/skill.sh | sh -s -- -a claude
+<details>
+<summary>GitHub Copilot</summary>
 
-# Install for Codex
-curl -fsSL https://raw.githubusercontent.com/dsillman2000/wiki-client/main/install/skill.sh | sh -s -- -a codex
+```bash
+curl -fsSL https://raw.githubusercontent.com/dsillman2000/wiki-client/main/install/skill.sh | bash -s -- -a copilot
+```
+
+</details>
+
+<details>
+<summary>Claude</summary>
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/dsillman2000/wiki-client/main/install/skill.sh | bash -s -- -a claude
+```
+
+</details>
+
+<details>
+<summary>Codex</summary>
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/dsillman2000/wiki-client/main/install/skill.sh | bash -s -- -a codex
+```
+
+</details>
+
+<details>
+<summary>Windsurf</summary>
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/dsillman2000/wiki-client/main/install/skill.sh | bash -s -- -a windsurf
+```
+
+</details>
+
+<details>
+<summary>Aider</summary>
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/dsillman2000/wiki-client/main/install/skill.sh | bash -s -- -a aider
+```
+
+</details>
+
+<details>
+<summary>Cursor</summary>
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/dsillman2000/wiki-client/main/install/skill.sh | bash -s -- -a cursor
+```
+
+</details>
+<br />
 
 # Install for Windsurf (Codeium)
+
 curl -fsSL https://raw.githubusercontent.com/dsillman2000/wiki-client/main/install/skill.sh | sh -s -- -a windsurf
 
 # Install for Aider
+
 curl -fsSL https://raw.githubusercontent.com/dsillman2000/wiki-client/main/install/skill.sh | sh -s -- -a aider
 
 # Install for Cursor
+
 curl -fsSL https://raw.githubusercontent.com/dsillman2000/wiki-client/main/install/skill.sh | sh -s -- -a cursor
-```
+
+````
 
 #### Local Installation
 
@@ -133,7 +188,7 @@ If you have cloned the repository, you can install locally:
 
 # Install for Cursor
 ./install/skill.sh -a cursor
-```
+````
 
 Show help:
 
