@@ -52,7 +52,7 @@ lint: lint-python lint-shell lint-markdown ## Run all linting checks
 
 lint-python: ## Run ruff on Python source and tests
 	@echo "$(BLUE)Running ruff...$(NC)"
-	ruff check wiki_cli/ tests/
+	ruff check wiki_client/ tests/
 	@echo "$(GREEN)✓ Ruff passed$(NC)"
 
 lint-shell: ## Run shellcheck on bash scripts
@@ -62,7 +62,7 @@ lint-shell: ## Run shellcheck on bash scripts
 
 lint-markdown: ## Check markdown formatting with prettier
 	@echo "$(BLUE)Checking markdown formatting...$(NC)"
-	npx prettier --check README.md
+	npx prettier --check "**/*.md"
 	@echo "$(GREEN)✓ Markdown formatting check passed$(NC)"
 
 ## Testing targets
@@ -76,12 +76,12 @@ test: ## Run pytest
 
 format: ## Format markdown files with prettier
 	@echo "$(BLUE)Formatting markdown files...$(NC)"
-	npx prettier --write README.md
+	npx prettier --write "**/*.md"
 	@echo "$(GREEN)✓ Formatting complete$(NC)"
 
 format-check: ## Check if formatting is needed
 	@echo "$(BLUE)Checking formatting...$(NC)"
-	npx prettier --check README.md
+	npx prettier --check "**/*.md"
 	@echo "$(GREEN)✓ All files properly formatted$(NC)"
 
 ## Utility targets
@@ -89,7 +89,7 @@ format-check: ## Check if formatting is needed
 clean: ## Remove build artifacts and caches
 	@echo "$(BLUE)Cleaning up...$(NC)"
 	rm -rf node_modules .husky package-lock.json
-	rm -rf dist/ build/ *.egg-info wiki_cli.egg-info
-	rm -rf .pytest_cache __pycache__ wiki_cli/__pycache__ tests/__pycache__
+	rm -rf dist/ build/ *.egg-info wiki_client.egg-info
+	rm -rf .pytest_cache __pycache__ wiki_client/__pycache__ tests/__pycache__
 	rm -rf .ruff_cache
 	@echo "$(GREEN)✓ Cleanup complete$(NC)"
