@@ -5,6 +5,7 @@ from __future__ import annotations
 from rich import box
 from rich.console import Console
 from rich.markdown import Markdown
+from rich.markup import escape
 from rich.table import Table
 
 console = Console()
@@ -291,9 +292,9 @@ def render_news(news: list[dict], *, raw: bool = False) -> None:
                 print(f"   {titles_str}")
             print()
         else:
-            console.print(f"[bold]{idx}.[/bold] {story_text}")
+            console.print(f"[bold]{idx}.[/bold] {escape(story_text)}")
             if link_titles:
-                console.print(f"   [cyan]{titles_str}[/cyan]")
+                console.print(f"   [cyan]{escape(titles_str)}[/cyan]")
             console.print()
 
 
@@ -319,7 +320,7 @@ def render_news_list(news: list[dict]) -> None:
             if link.get("title")
         ]
         if link_titles:
-            console.print(f"[bold]{idx}.[/bold] {', '.join(link_titles)}")
+            console.print(f"[bold]{idx}.[/bold] {escape(', '.join(link_titles))}")
         else:
             console.print(f"[bold]{idx}.[/bold] (no linked articles)")
 

@@ -792,7 +792,7 @@ def fetch_featured_article(date: str | None = None) -> dict:
     """Fetch Wikipedia's featured article for a given date.
 
     Args:
-        date: Optional date in YYYY-MM-DD format. Defaults to today.
+        date: Optional date in YYYY-MM-DD format. Defaults to today (UTC).
 
     Returns:
         Full article dict with title, description, sections, etc.
@@ -838,7 +838,7 @@ def fetch_most_read(date: str | None = None) -> dict:
     the statistics for the previous day.
 
     Args:
-        date: Optional date in YYYY-MM-DD format. Defaults to today.
+        date: Optional date in YYYY-MM-DD format. Defaults to today (UTC).
 
     Returns:
         Dict with ``date`` (str) and ``articles`` (list of article dicts).
