@@ -17,6 +17,9 @@ wiki --search "query"        # Search mode
 wiki --random                # Fetch random article
 wiki --featured              # Fetch today's featured article
 wiki --featured-date DATE    # Fetch featured article for specific date
+wiki --most-read             # Fetch yesterday's most-read articles
+wiki --most-read-date DATE   # Fetch most-read for specific date
+wiki --news                  # Fetch today's "In the news" stories
 wiki -ls "article"           # List all sections
 wiki --raw "article"         # Raw Markdown output
 wiki "article" -o file.md    # Save to file
@@ -36,6 +39,8 @@ wiki "https://en.wikipedia.org/wiki/..." # Direct URL
 - Use `--search` to discover relevant articles before fetching
 - Use `--random` for serendipitous discovery or testing
 - Use `--featured` for Wikipedia's daily featured article
+- Use `--most-read` for trending articles
+- Use `--news` for current "In the news" stories
 - Use `-o file.md` to save output for later reference
 - Use `-ls` to preview article sections before extracting
 - Cite source URLs in research outputs
@@ -52,8 +57,7 @@ Wikipedia content is licensed under [CC BY-SA 3.0](https://creativecommons.org/l
 - Wikipedia only (no other wikis like Wikitech, etc.)
 - Requires internet access
 - Section matching uses fuzzy matching (e.g., `-s "hist"` matches "History")
-- `--featured` mode now available for daily featured articles
-- `--news` mode not yet implemented
+- Feed modes available: `--random`, `--featured`, `--most-read`, `--news`
 
 ## Common Research Tasks
 
@@ -79,6 +83,18 @@ wiki --featured -o featured.md
 wiki --featured -s "Section"  # Extract section from featured article
 wiki --featured-date 2025-03-23  # Fetch for specific date
 wiki --featured-date 2025-03-23 -s "Section"  # Extract section from specific date
+
+# Get most-read articles
+wiki --most-read
+wiki --most-read --ls
+wiki --most-read -o most_read.md
+wiki --most-read -s "Eiffel Tower"  # Extract specific article from list
+wiki --most-read-date 2026-03-23  # Fetch for specific date
+
+# Get "In the news" stories
+wiki --news
+wiki --news --ls
+wiki --news -o news.md
 
 # List article sections before extracting
 wiki -ls "Bash (shell)"

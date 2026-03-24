@@ -16,6 +16,9 @@ wiki --search "query"               # Search Wikipedia
 wiki --random                       # Fetch random article
 wiki --featured                     # Fetch today's featured article
 wiki --featured-date DATE           # Fetch featured article for specific date
+wiki --most-read                    # Fetch yesterday's most-read articles
+wiki --most-read-date DATE          # Fetch most-read for specific date
+wiki --news                         # Fetch today's "In the news" stories
 wiki --raw "article"               # Raw Markdown output
 wiki "article" -o file.md          # Save to file
 wiki "https://wikipedia.org/wiki/..." # Direct Wikipedia URL
@@ -63,6 +66,18 @@ wiki --featured -s "Section"  # Extract section from featured article
 wiki --featured-date 2025-03-23  # Fetch for specific date
 wiki --featured-date 2025-03-23 -s "Section"  # Extract section from specific date
 
+# Get most-read articles
+wiki --most-read
+wiki --most-read --ls
+wiki --most-read -o most_read.md
+wiki --most-read -s "Eiffel Tower"  # Extract specific article from list
+wiki --most-read-date 2026-03-23  # Fetch for specific date
+
+# Get "In the news" stories
+wiki --news
+wiki --news --ls
+wiki --news -o news.md
+
 # Save for later
 wiki "Python" -o python.md
 
@@ -84,5 +99,4 @@ wiki "https://en.wikipedia.org/wiki/Python_(programming_language)"
 - Wikipedia only (English by default)
 - Requires internet access
 - Section matching uses fuzzy matching
-- `--featured` mode now available for daily featured articles
-- `--news` not yet implemented
+- Feed modes available: --random, --featured, --most-read, --news

@@ -17,6 +17,8 @@ A command-line tool to fetch Wikipedia articles and display them in the terminal
 - **Search mode** — Show a ranked list of search results
 - **Featured articles** — Fetch Wikipedia's daily featured article
 - **Random articles** — Fetch random Wikipedia articles
+- **Most-read articles** — Fetch Wikipedia's most-read articles for yesterday
+- **Daily news** — Fetch Wikipedia's "In the news" stories
 - **Raw output** — Print plain text instead of Rich-formatted output
 
 ## Requirements
@@ -162,6 +164,32 @@ wiki --random
 
 # Save random article to file
 wiki --random -o random_article.md
+```
+
+### Most-Read & News
+
+```bash
+# Fetch yesterday's most-read Wikipedia articles
+wiki --most-read
+
+# Extract specific article from most-read list
+wiki --most-read -s "Eiffel Tower"
+
+# Fetch most-read articles for specific date
+wiki --most-read --most-read-date 2026-03-23
+wiki --most-read-date 2026-03-23  # --most-read-date implies --most-read
+
+# List most-read articles (compact view)
+wiki --most-read --ls
+
+# Save most-read to file
+wiki --most-read -o most_read.md
+
+# Fetch today's "In the news" stories
+wiki --news
+wiki --news --raw
+wiki --news -o news.md
+wiki --news --ls
 ```
 
 ### Version

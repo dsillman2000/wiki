@@ -5,6 +5,7 @@ from __future__ import annotations
 from rich import box
 from rich.console import Console
 from rich.markdown import Markdown
+from rich.markup import escape
 from rich.table import Table
 
 console = Console()
@@ -255,6 +256,75 @@ def render_section_list(sections: list[dict], *, page_url: str = "") -> None:
         console.print(Markdown(f"*Source: <{page_url}>*"))
 
 
+def render_news(news: list[dict], *, raw: bool = False) -> None:
+    """Render Wikipedia 'In the news' stories to the terminal.
+
+    Outputs a numbered list of stories; each story shows the plain-text
+    summary followed by the titles of its linked articles in brackets so
+    that users can copy a title for a follow-up ``wiki "Title"`` invocation.
+
+    Args:
+        news: List of news story dicts as returned by
+              :func:`~wiki_client.api.fetch_news`.
+        raw:  When *True*, emit plain text instead of Rich markup.
+    """
+    if not news:
+        if raw:
+            print("No news stories available.")
+        else:
+            console.print("[yellow]No news stories available.[/yellow]")
+        return
+
+    for idx, story in enumerate(news, start=1):
+        story_text = story.get("story", "")
+        links = story.get("links", [])
+        link_titles = [
+            link.get("title", "").replace("_", " ")
+            for link in links
+            if link.get("title")
+        ]
+        # Double-space between adjacent bracket groups aids visual separation
+        titles_str = "  ".join(f"[{t}]" for t in link_titles)
+
+        if raw:
+            print(f"{idx}. {story_text}")
+            if link_titles:
+                print(f"   {titles_str}")
+            print()
+        else:
+            console.print(f"[bold]{idx}.[/bold] {escape(story_text)}")
+            if link_titles:
+                console.print(f"   [cyan]{escape(titles_str)}[/cyan]")
+            console.print()
+
+
+def render_news_list(news: list[dict]) -> None:
+    """Render a summary list of news stories (table-of-contents style).
+
+    Shows each story's index and its linked article titles, omitting the
+    full story text.  Intended for the ``--ls`` flag.
+
+    Args:
+        news: List of news story dicts as returned by
+              :func:`~wiki_client.api.fetch_news`.
+    """
+    if not news:
+        console.print("[yellow]No news stories available.[/yellow]")
+        return
+
+    for idx, story in enumerate(news, start=1):
+        links = story.get("links", [])
+        link_titles = [
+            link.get("title", "").replace("_", " ")
+            for link in links
+            if link.get("title")
+        ]
+        if link_titles:
+            console.print(f"[bold]{idx}.[/bold] {escape(', '.join(link_titles))}")
+        else:
+            console.print(f"[bold]{idx}.[/bold] (no linked articles)")
+
+
 def render_sections(
     sections: list[dict], *, raw: bool = False, page_url: str = ""
 ) -> None:
@@ -310,3 +380,81 @@ def render_sections(
             print(f"Source: <{page_url}>")
         else:
             console.print(Markdown(f"*Source: <{page_url}>*"))
+
+
+def render_most_read(data: dict, *, raw: bool = False, compact: bool = False) -> None:
+    """Render Wikipedia's most-read article list to the terminal.
+
+    Args:
+        data:    Dict returned by :func:`~wiki_client.api.fetch_most_read` with
+                 ``date`` and ``articles`` keys.
+        raw:     When *True*, emit plain-text Markdown instead of Rich markup.
+        compact: When *True*, omit the extract column (title/rank/views only).
+    """
+    articles = data.get("articles", [])
+    date_str = (data.get("date") or "").rstrip("Z")
+
+    if not articles:
+        if raw:
+            print("No most-read articles found.")
+        else:
+            console.print("[yellow]No most-read articles found.[/yellow]")
+        return
+
+    title_heading = (
+        f"Most Read Articles ({date_str})" if date_str else "Most Read Articles"
+    )
+
+    if raw:
+        print(f"# {title_heading}")
+        print()
+        if compact:
+            print("| Rank | Title | Views |")
+            print("| --- | --- | --- |")
+            for article in articles:
+                rank = article.get("rank", "")
+                title = article.get("normalizedtitle") or article.get(
+                    "title", ""
+                ).replace("_", " ")
+                views = article.get("views", 0)
+                print(f"| {rank} | {title} | {views:,} |")
+        else:
+            print("| Rank | Title | Views | Extract |")
+            print("| --- | --- | --- | --- |")
+            for article in articles:
+                rank = article.get("rank", "")
+                title = article.get("normalizedtitle") or article.get(
+                    "title", ""
+                ).replace("_", " ")
+                views = article.get("views", 0)
+                extract = (article.get("extract") or "")[:120].replace("|", "\\|")
+                print(f"| {rank} | {title} | {views:,} | {extract} |")
+        return
+
+    # Rich mode
+    table = Table(
+        title=title_heading,
+        box=box.SIMPLE,
+        show_header=True,
+        header_style="bold cyan",
+        expand=True,
+    )
+    table.add_column("#", style="dim", width=4, justify="right")
+    table.add_column("Title", style="bold", min_width=20)
+    table.add_column("Views", justify="right", min_width=10)
+    if not compact:
+        table.add_column("Extract", overflow="fold")
+
+    for article in articles:
+        rank = str(article.get("rank", ""))
+        title = article.get("normalizedtitle") or article.get("title", "").replace(
+            "_", " "
+        )
+        views = article.get("views", 0)
+        if compact:
+            table.add_row(rank, title, f"{views:,}")
+        else:
+            extract = (article.get("extract") or "")[:200]
+            table.add_row(rank, title, f"{views:,}", extract)
+
+    console.print(table)

@@ -89,7 +89,7 @@ pip install -e ".[dev]"  # Install with dev dependencies
 ### Verification
 
 ```bash
-python -m pytest     # Run test suite (89 tests)
+python -m pytest     # Run test suite
 ruff check          # Run linter
 ruff format --check # Check formatting
 ```
@@ -272,9 +272,9 @@ wiki/
 ├── agents/               # Agent prompts and guides
 │   └── Wikipedia.md      # Wikipedia research agent prompt
 ├── tests/                # Test suite
-│   ├── test_api.py       # API tests (59 tests)
-│   └── test_render.py    # Render tests (30 tests)
-├── wiki_cli/             # Main package
+│   ├── test_api.py       # API tests
+│   └── test_render.py    # Render tests
+├── wiki_client/          # Main package
 │   ├── __init__.py       # Package init
 │   ├── __version__.py    # Version info
 │   ├── api.py            # Wikipedia API client
@@ -329,6 +329,9 @@ Benefits:
 | `--random`              | Fetch a random Wikipedia article                              |
 | `--featured`            | Fetch today's featured Wikipedia article                      |
 | `--featured-date DATE`  | Fetch featured article for specific date (implies --featured) |
+| `--most-read`           | Fetch yesterday's most-read Wikipedia articles                |
+| `--most-read-date DATE` | Fetch most-read for specific date (implies --most-read)       |
+| `--news`                | Fetch today's "In the news" stories                           |
 | `--raw`                 | Plain text/Markdown output (no Rich formatting)               |
 | `-o, --output FILE`     | Write output to FILE                                          |
 | `--version`             | Show version                                                  |

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import re
-from datetime import datetime
+from datetime import datetime, timezone
 from urllib.parse import unquote, urlparse
 
 import httpx
@@ -714,11 +714,85 @@ def fetch_random_article() -> dict:
     return {**summary, "sections": section_tree}
 
 
+def _parse_date(date: str | None) -> tuple[str, str, str]:
+    """Validate and parse an optional YYYY-MM-DD date string.
+
+    Args:
+        date: Date string in YYYY-MM-DD format, or None for today (UTC).
+
+    Returns:
+        Tuple of (year, month, day) strings (zero-padded).
+
+    Raises:
+        ValueError: If *date* is present but has an invalid format.
+    """
+    if date is not None:
+        stripped = date.strip()
+        if not stripped:
+            raise ValueError("Invalid date format: empty string. Use YYYY-MM-DD.")
+        try:
+            parsed = datetime.strptime(stripped, "%Y-%m-%d").date()
+        except ValueError:
+            raise ValueError(f"Invalid date format: {date}. Use YYYY-MM-DD.") from None
+    else:
+        parsed = datetime.now(timezone.utc).date()
+    return parsed.strftime("%Y"), parsed.strftime("%m"), parsed.strftime("%d")
+
+
+def fetch_news(date: str | None = None) -> list[dict]:
+    """Fetch Wikipedia's 'In the news' stories for a given date.
+
+    Uses the same Wikipedia feed API endpoint as :func:`fetch_featured_article`
+    and extracts the ``news`` field.
+
+    Args:
+        date: Optional date in YYYY-MM-DD format. Defaults to today (UTC).
+              Note: The Wikipedia news feed only contains entries for the
+              current UTC day. Historical dates will have an empty ``news``
+              field and raise a ValueError.
+
+    Returns:
+        List of news story dicts, each containing:
+            - ``story``: plain-text story summary (HTML stripped)
+            - ``links``: list of related article dicts (title, extract, etc.)
+
+    Raises:
+        ValueError: If the date format is invalid or no news is available.
+        httpx.HTTPStatusError: On HTTP errors.
+        httpx.RequestError: On network failures.
+    """
+    year, month, day = _parse_date(date)
+    url = f"https://en.wikipedia.org/api/rest_v1/feed/featured/{year}/{month}/{day}"
+
+    with httpx.Client(
+        headers={"User-Agent": USER_AGENT}, follow_redirects=True
+    ) as client:
+        response = client.get(url)
+        response.raise_for_status()
+        data = response.json()
+
+    raw_news = data.get("news", [])
+    if not raw_news:
+        raise ValueError(
+            f"No news available for {year}-{month}-{day}. "
+            "Note: Wikipedia 'In the news' is only available for the current day."
+        )
+
+    result = []
+    for story in raw_news:
+        story_html = story.get("story", "")
+        story_text = _strip_html(story_html)
+        links = story.get("links", [])
+        result.append({"story": story_text, "links": links})
+
+    return result
+
+
 def fetch_featured_article(date: str | None = None) -> dict:
     """Fetch Wikipedia's featured article for a given date.
 
     Args:
-        date: Optional date in YYYY-MM-DD format. Defaults to today.
+        date: Optional date in YYYY-MM-DD format. Defaults to today (UTC).
 
     Returns:
         Full article dict with title, description, sections, etc.
@@ -728,24 +802,7 @@ def fetch_featured_article(date: str | None = None) -> dict:
         httpx.HTTPStatusError: On HTTP errors.
         httpx.RequestError: On network failures.
     """
-    # Build URL for featured article API
-    if date is not None:
-        # Validate date format (strict YYYY-MM-DD)
-        stripped = date.strip()
-        if not stripped:
-            raise ValueError("Invalid date format: empty string. Use YYYY-MM-DD.")
-        try:
-            parsed_date = datetime.strptime(stripped, "%Y-%m-%d").date()
-        except ValueError:
-            raise ValueError(f"Invalid date format: {date}. Use YYYY-MM-DD.") from None
-    else:
-        # Use today's date if not specified
-        parsed_date = datetime.now().date()
-
-    year = parsed_date.strftime("%Y")
-    month = parsed_date.strftime("%m")
-    day = parsed_date.strftime("%d")
-
+    year, month, day = _parse_date(date)
     url = f"https://en.wikipedia.org/api/rest_v1/feed/featured/{year}/{month}/{day}"
 
     # Fetch featured article summary
@@ -758,9 +815,7 @@ def fetch_featured_article(date: str | None = None) -> dict:
 
     # Extract featured article from response
     if "tfa" not in featured_data:
-        raise ValueError(
-            f"No featured article found for {parsed_date.strftime('%Y-%m-%d')}"
-        )
+        raise ValueError(f"No featured article found for {year}-{month}-{day}")
 
     summary = featured_data["tfa"]
 
@@ -774,3 +829,72 @@ def fetch_featured_article(date: str | None = None) -> dict:
         section_tree = []
 
     return {**summary, "sections": section_tree}
+
+
+def fetch_most_read(date: str | None = None) -> dict:
+    """Fetch Wikipedia's most-read articles for a given date.
+
+    The most-read data is always one day behind — requesting a date returns
+    the statistics for the previous day.
+
+    Args:
+        date: Optional date in YYYY-MM-DD format. Defaults to today (UTC).
+
+    Returns:
+        Dict with ``date`` (str) and ``articles`` (list of article dicts).
+        Each article dict contains at least ``rank``, ``title``,
+        ``normalizedtitle``, ``views``, and ``extract``.
+
+    Raises:
+        ValueError: If no most-read data found in response or date is invalid.
+        httpx.HTTPStatusError: On HTTP errors.
+        httpx.RequestError: On network failures.
+    """
+    year, month, day = _parse_date(date)
+    url = f"https://en.wikipedia.org/api/rest_v1/feed/featured/{year}/{month}/{day}"
+
+    with httpx.Client(
+        headers={"User-Agent": USER_AGENT}, follow_redirects=True
+    ) as client:
+        response = client.get(url)
+        response.raise_for_status()
+        feed_data = response.json()
+
+    if "mostread" not in feed_data:
+        raise ValueError(f"No most-read articles found for {year}-{month}-{day}")
+
+    return feed_data["mostread"]
+
+
+def filter_most_read_articles(articles: list[dict], queries: tuple[str, ...]) -> str:
+    """Find the first most-read article whose title fuzzy-matches a query.
+
+    Matching is case-insensitive substring after normalising to lowercase
+    alphanumeric characters.
+
+    Args:
+        articles: List of article dicts from :func:`fetch_most_read`.
+        queries:  One or more query strings to match against article titles.
+
+    Returns:
+        The normalized title of the first matching article.
+
+    Raises:
+        ValueError: If no article matches any of the given queries.
+    """
+
+    def _normalize(s: str) -> str:
+        return re.sub(r"[^a-z0-9]", "", s.lower())
+
+    normalized_queries = [_normalize(q) for q in queries]
+
+    for article in articles:
+        title = article.get("normalizedtitle") or article.get("title", "").replace(
+            "_", " "
+        )
+        if any(_normalize(q) in _normalize(title) for q in normalized_queries):
+            return title
+
+    raise ValueError(
+        f"No most-read article found matching: {', '.join(repr(q) for q in queries)}"
+    )
