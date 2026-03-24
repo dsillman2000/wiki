@@ -15,6 +15,8 @@ A command-line tool to fetch Wikipedia articles and display them in the terminal
 
 - **Fetch articles** — Query Wikipedia by article title or search query
 - **Search mode** — Show a ranked list of search results
+- **Featured articles** — Fetch Wikipedia's daily featured article
+- **Random articles** — Fetch random Wikipedia articles
 - **Raw output** — Print plain text instead of Rich-formatted output
 
 ## Requirements
@@ -134,6 +136,32 @@ wiki -s "early" "Unix shell"    # matches "Early shells", "Early history", etc.
 
 # Multiple sections
 wiki -s History -s "See also" "Unix shell"
+```
+
+### Featured & Random Articles
+
+```bash
+# Fetch today's featured Wikipedia article
+wiki --featured
+
+# Extract specific section from featured article
+wiki --featured -s "Early life"
+
+# Fetch featured article for specific date
+wiki --featured --featured-date 2025-03-23
+wiki --featured-date 2025-03-23  # --featured-date implies --featured
+
+# Extract section from specific date's featured article
+wiki --featured-date 2025-03-23 -s "Storyline"
+
+# List sections of featured article
+wiki --featured --ls
+
+# Fetch a random Wikipedia article
+wiki --random
+
+# Save random article to file
+wiki --random -o random_article.md
 ```
 
 ### Version

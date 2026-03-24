@@ -14,6 +14,8 @@ wiki -s "Section" "article"          # Extract section (fuzzy match)
 wiki -ls "article"                  # List all sections
 wiki --search "query"               # Search Wikipedia
 wiki --random                       # Fetch random article
+wiki --featured                     # Fetch today's featured article
+wiki --featured-date DATE           # Fetch featured article for specific date
 wiki --raw "article"               # Raw Markdown output
 wiki "article" -o file.md          # Save to file
 wiki "https://wikipedia.org/wiki/..." # Direct Wikipedia URL
@@ -53,6 +55,14 @@ wiki --random
 wiki --random --raw
 wiki --random -o random_article.md
 
+# Get today's featured article
+wiki --featured
+wiki --featured --ls
+wiki --featured -o featured.md
+wiki --featured -s "Section"  # Extract section from featured article
+wiki --featured-date 2025-03-23  # Fetch for specific date
+wiki --featured-date 2025-03-23 -s "Section"  # Extract section from specific date
+
 # Save for later
 wiki "Python" -o python.md
 
@@ -74,4 +84,5 @@ wiki "https://en.wikipedia.org/wiki/Python_(programming_language)"
 - Wikipedia only (English by default)
 - Requires internet access
 - Section matching uses fuzzy matching
-- `--featured`, `--news` not yet implemented
+- `--featured` mode now available for daily featured articles
+- `--news` not yet implemented

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from datetime import datetime
 from urllib.parse import unquote, urlparse
 
 import httpx
@@ -700,6 +701,68 @@ def fetch_random_article() -> dict:
         )
         response.raise_for_status()
         summary = response.json()
+
+    # Fetch full HTML using title from summary
+    canonical_title = summary.get("title", "")
+    try:
+        html = _fetch_html(canonical_title)
+        flat = _parse_sections(html)
+        section_tree = _build_section_tree(flat)
+    except (httpx.HTTPStatusError, httpx.RequestError):
+        section_tree = []
+
+    return {**summary, "sections": section_tree}
+
+
+def fetch_featured_article(date: str | None = None) -> dict:
+    """Fetch Wikipedia's featured article for a given date.
+
+    Args:
+        date: Optional date in YYYY-MM-DD format. Defaults to today.
+
+    Returns:
+        Full article dict with title, description, sections, etc.
+
+    Raises:
+        ValueError: If no featured article found in response.
+        httpx.HTTPStatusError: On HTTP errors.
+        httpx.RequestError: On network failures.
+    """
+    # Build URL for featured article API
+    if date is not None:
+        # Validate date format (strict YYYY-MM-DD)
+        stripped = date.strip()
+        if not stripped:
+            raise ValueError("Invalid date format: empty string. Use YYYY-MM-DD.")
+        try:
+            parsed_date = datetime.strptime(stripped, "%Y-%m-%d").date()
+        except ValueError:
+            raise ValueError(f"Invalid date format: {date}. Use YYYY-MM-DD.") from None
+    else:
+        # Use today's date if not specified
+        parsed_date = datetime.now().date()
+
+    year = parsed_date.strftime("%Y")
+    month = parsed_date.strftime("%m")
+    day = parsed_date.strftime("%d")
+
+    url = f"https://en.wikipedia.org/api/rest_v1/feed/featured/{year}/{month}/{day}"
+
+    # Fetch featured article summary
+    with httpx.Client(
+        headers={"User-Agent": USER_AGENT}, follow_redirects=True
+    ) as client:
+        response = client.get(url)
+        response.raise_for_status()
+        featured_data = response.json()
+
+    # Extract featured article from response
+    if "tfa" not in featured_data:
+        raise ValueError(
+            f"No featured article found for {parsed_date.strftime('%Y-%m-%d')}"
+        )
+
+    summary = featured_data["tfa"]
 
     # Fetch full HTML using title from summary
     canonical_title = summary.get("title", "")

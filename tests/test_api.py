@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+from datetime import datetime
+from unittest.mock import patch
+
 import httpx
 import pytest
 from pytest_httpx import HTTPXMock
@@ -829,3 +832,187 @@ class TestMixedContent:
         sections = api._parse_sections(html)
         content = sections[0]["content"]
         assert "> See [the API]" in content
+
+
+# ---------------------------------------------------------------------------
+# fetch_featured_article
+# ---------------------------------------------------------------------------
+
+
+SAMPLE_FEATURED_RESPONSE = {
+    "tfa": {
+        "type": "standard",
+        "title": "Michael_Tritter",
+        "displaytitle": '<span class="mw-page-title-main">Michael Tritter</span>',
+        "normalizedtitle": "Michael Tritter",
+        "namespace": {"id": 0, "text": ""},
+        "wikibase_item": "Q3856283",
+        "titles": {
+            "canonical": "Michael_Tritter",
+            "normalized": "Michael Tritter",
+            "display": '<span class="mw-page-title-main">Michael Tritter</span>',
+        },
+        "pageid": 19612185,
+        "lang": "en",
+        "dir": "ltr",
+        "revision": "1333889563",
+        "tid": "9bdbc708-f5db-11f0-b44a-0d205c4be687",
+        "timestamp": "2026-01-20T08:40:01Z",
+        "description": "Fictional detective on the TV series House",
+        "description_source": "local",
+        "content_urls": {
+            "desktop": {
+                "page": "https://en.wikipedia.org/wiki/Michael_Tritter",
+                "revisions": "https://en.wikipedia.org/wiki/Michael_Tritter?action=history",
+                "edit": "https://en.wikipedia.org/wiki/Michael_Tritter?action=edit",
+                "talk": "https://en.wikipedia.org/wiki/Talk:Michael_Tritter",
+            },
+            "mobile": {
+                "page": "https://en.m.wikipedia.org/wiki/Michael_Tritter",
+                "revisions": "https://en.m.wikipedia.org/wiki/Special:History/Michael_Tritter",
+                "edit": "https://en.m.wikipedia.org/wiki/Michael_Tritter?action=edit",
+                "talk": "https://en.m.wikipedia.org/wiki/Talk:Michael_Tritter",
+            },
+        },
+        "extract": (
+            "Michael Tritter is a fictional detective on the television series House. "
+            "He is portrayed by actor David Morse. Tritter appears in the third season "
+            "of the series, in which he investigates Dr. Gregory House for drug abuse."
+        ),
+        "extract_html": (
+            "<p><b>Michael Tritter</b> is a fictional detective on the "
+            "television series <i>House</i>. He is portrayed by actor "
+            '<a href="/wiki/David_Morse" title="David Morse">David Morse</a>. '
+            "Tritter appears in the third season of the series, in which "
+            "he investigates Dr. Gregory House for drug abuse.</p>"
+        ),
+    }
+}
+
+SAMPLE_FEATURED_HTML = """
+<html><body>
+<section data-mw-section-id="0">
+  <p>Michael Tritter is a fictional detective on the television series House.</p>
+</section>
+<section data-mw-section-id="1">
+  <h2 id="Character">Character</h2>
+  <p>Tritter is portrayed by actor David Morse.</p>
+</section>
+<section data-mw-section-id="2">
+  <h2 id="Plot">Plot</h2>
+  <p>In the third season, Tritter investigates Dr. Gregory House for drug abuse.</p>
+</section>
+</body></html>
+"""
+
+
+class TestFetchFeaturedArticle:
+    def test_fetches_todays_featured_article(self, httpx_mock: HTTPXMock) -> None:
+        # Mock datetime to return a fixed date
+        mock_date = datetime(2025, 3, 23)
+        with patch("wiki_client.api.datetime") as mock_datetime:
+            mock_datetime.now.return_value = mock_date
+            httpx_mock.add_response(
+                url="https://en.wikipedia.org/api/rest_v1/feed/featured/2025/03/23",
+                json=SAMPLE_FEATURED_RESPONSE,
+            )
+            # Mock HTML response for the article
+            httpx_mock.add_response(
+                url="https://en.wikipedia.org/api/rest_v1/page/html/Michael_Tritter",
+                text=SAMPLE_FEATURED_HTML,
+            )
+
+            result = api.fetch_featured_article()
+
+        assert result["title"] == "Michael_Tritter"
+        assert result["description"] == "Fictional detective on the TV series House"
+        assert "extract" in result
+        assert "content_urls" in result
+        assert "sections" in result
+        assert len(result["sections"]) == 3
+        assert result["sections"][0]["title"] == ""
+        assert result["sections"][1]["title"] == "Character"
+        assert result["sections"][2]["title"] == "Plot"
+
+    def test_fetches_featured_article_for_specific_date(
+        self, httpx_mock: HTTPXMock
+    ) -> None:
+        httpx_mock.add_response(
+            url="https://en.wikipedia.org/api/rest_v1/feed/featured/2025/03/23",
+            json=SAMPLE_FEATURED_RESPONSE,
+        )
+        httpx_mock.add_response(
+            url="https://en.wikipedia.org/api/rest_v1/page/html/Michael_Tritter",
+            text=SAMPLE_FEATURED_HTML,
+        )
+
+        result = api.fetch_featured_article("2025-03-23")
+
+        assert result["title"] == "Michael_Tritter"
+        assert len(result["sections"]) == 3
+
+    def test_handles_missing_tfa_key(self, httpx_mock: HTTPXMock) -> None:
+        # Mock datetime to return a fixed date
+        mock_date = datetime(2025, 3, 23)
+        with patch("wiki_client.api.datetime") as mock_datetime:
+            mock_datetime.now.return_value = mock_date
+
+            httpx_mock.add_response(
+                url="https://en.wikipedia.org/api/rest_v1/feed/featured/2025/03/23",
+                json={},  # Empty response without tfa key
+            )
+
+            with pytest.raises(ValueError, match="No featured article found"):
+                api.fetch_featured_article()
+
+    def test_handles_http_errors_on_featured_api(self, httpx_mock: HTTPXMock) -> None:
+        # Mock datetime to return a fixed date
+        mock_date = datetime(2025, 3, 23)
+        with patch("wiki_client.api.datetime") as mock_datetime:
+            mock_datetime.now.return_value = mock_date
+
+            httpx_mock.add_response(
+                url="https://en.wikipedia.org/api/rest_v1/feed/featured/2025/03/23",
+                status_code=404,
+            )
+
+            with pytest.raises(httpx.HTTPStatusError):
+                api.fetch_featured_article()
+
+    def test_handles_http_errors_on_html_fetch(self, httpx_mock: HTTPXMock) -> None:
+        # Mock datetime to return a fixed date
+        mock_date = datetime(2025, 3, 23)
+        with patch("wiki_client.api.datetime") as mock_datetime:
+            mock_datetime.now.return_value = mock_date
+
+            httpx_mock.add_response(
+                url="https://en.wikipedia.org/api/rest_v1/feed/featured/2025/03/23",
+                json=SAMPLE_FEATURED_RESPONSE,
+            )
+            httpx_mock.add_response(
+                url="https://en.wikipedia.org/api/rest_v1/page/html/Michael_Tritter",
+                status_code=500,
+            )
+
+            result = api.fetch_featured_article()
+
+        # Should still return summary data even if HTML fetch fails
+        assert result["title"] == "Michael_Tritter"
+        assert result["description"] == "Fictional detective on the TV series House"
+        assert result["sections"] == []  # Empty sections when HTML fetch fails
+
+    @pytest.mark.parametrize(
+        "bad_date",
+        [
+            "",  # empty string
+            "   ",  # whitespace-only
+            "2025/03/23",  # wrong separator
+            "03-23-2025",  # wrong order (MM-DD-YYYY)
+            "not-a-date",  # not a date at all
+            "2025-02-30",  # impossible date
+            "2025-13-01",  # invalid month
+        ],
+    )
+    def test_rejects_invalid_date_formats(self, bad_date: str) -> None:
+        with pytest.raises(ValueError, match="Invalid date format"):
+            api.fetch_featured_article(bad_date)
