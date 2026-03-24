@@ -187,16 +187,9 @@ wiki --most-read -o most_read.md
 
 # Fetch today's "In the news" stories
 wiki --news
-
-# Fetch news for specific date
-wiki --news --news-date 2026-03-23
-wiki --news-date 2026-03-23  # --news-date implies --news
-
-# List news stories
-wiki --news --ls
-
-# Save news to file
+wiki --news --raw
 wiki --news -o news.md
+wiki --news --ls
 ```
 
 ### Version

@@ -332,7 +332,6 @@ Benefits:
 | `--most-read`             | Fetch yesterday's most-read Wikipedia articles               |
 | `--most-read-date DATE`   | Fetch most-read for specific date (implies --most-read)      |
 | `--news`                  | Fetch today's "In the news" stories                          |
-| `--news-date DATE`        | Fetch news for specific date (implies --news)                |
 | `--raw`                   | Plain text/Markdown output (no Rich formatting)               |
 | `-o, --output FILE`       | Write output to FILE                                          |
 | `--version`               | Show version                                                  |

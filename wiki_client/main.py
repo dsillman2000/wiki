@@ -85,12 +85,6 @@ from wiki_client import __version__, api, render
     is_flag=True,
     help="Fetch today's Wikipedia 'In the news' stories.",
 )
-@click.option(
-    "--news-date",
-    metavar="DATE",
-    default=None,
-    help=("Fetch news stories for specific date (YYYY-MM-DD format). Implies --news."),
-)
 @click.version_option(version=__version__, prog_name="wiki")
 def cli(
     query: tuple[str, ...],
@@ -105,7 +99,6 @@ def cli(
     most_read: bool,
     most_read_date: str | None,
     news_mode: bool,
-    news_date: str | None,
 ) -> None:
     """Fetch a Wikipedia article and display it in the terminal.
 
@@ -143,7 +136,6 @@ def cli(
       wiki --news --raw
       wiki --news -o news.md
       wiki --news --ls
-      wiki --news-date 2026-03-23
     """
     # If featured_date is specified, automatically enable featured mode
     if featured_date:
@@ -152,10 +144,6 @@ def cli(
     # If most_read_date is specified, automatically enable most_read mode
     if most_read_date:
         most_read = True
-
-    # If news_date is specified, automatically enable news mode
-    if news_date:
-        news_mode = True
 
     # Validate incompatible flag combinations
     if random and section_filter:
@@ -242,7 +230,7 @@ def cli(
                         most_read_data, raw=raw, compact=list_sections
                     )
             elif news_mode:
-                news = api.fetch_news(news_date)
+                news = api.fetch_news()
                 if list_sections:
                     render.render_news_list(news)
                 else:

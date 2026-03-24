@@ -20,7 +20,6 @@ wiki --featured-date DATE    # Fetch featured article for specific date
 wiki --most-read             # Fetch yesterday's most-read articles
 wiki --most-read-date DATE   # Fetch most-read for specific date
 wiki --news                  # Fetch today's "In the news" stories
-wiki --news-date DATE        # Fetch news for specific date
 wiki -ls "article"           # List all sections
 wiki --raw "article"         # Raw Markdown output
 wiki "article" -o file.md    # Save to file
@@ -96,7 +95,6 @@ wiki --most-read-date 2026-03-23  # Fetch for specific date
 wiki --news
 wiki --news --ls
 wiki --news -o news.md
-wiki --news-date 2026-03-23  # Fetch for specific date
 
 # List article sections before extracting
 wiki -ls "Bash (shell)"
