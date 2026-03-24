@@ -737,9 +737,7 @@ def fetch_featured_article(date: str | None = None) -> dict:
         try:
             parsed_date = datetime.strptime(stripped, "%Y-%m-%d").date()
         except ValueError:
-            raise ValueError(
-                f"Invalid date format: {date}. Use YYYY-MM-DD."
-            ) from None
+            raise ValueError(f"Invalid date format: {date}. Use YYYY-MM-DD.") from None
     else:
         # Use today's date if not specified
         parsed_date = datetime.now().date()
