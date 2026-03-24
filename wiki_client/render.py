@@ -310,3 +310,81 @@ def render_sections(
             print(f"Source: <{page_url}>")
         else:
             console.print(Markdown(f"*Source: <{page_url}>*"))
+
+
+def render_most_read(data: dict, *, raw: bool = False, compact: bool = False) -> None:
+    """Render Wikipedia's most-read article list to the terminal.
+
+    Args:
+        data:    Dict returned by :func:`~wiki_cli.api.fetch_most_read` with
+                 ``date`` and ``articles`` keys.
+        raw:     When *True*, emit plain-text Markdown instead of Rich markup.
+        compact: When *True*, omit the extract column (title/rank/views only).
+    """
+    articles = data.get("articles", [])
+    date_str = (data.get("date") or "").rstrip("Z")
+
+    if not articles:
+        if raw:
+            print("No most-read articles found.")
+        else:
+            console.print("[yellow]No most-read articles found.[/yellow]")
+        return
+
+    title_heading = (
+        f"Most Read Articles ({date_str})" if date_str else "Most Read Articles"
+    )
+
+    if raw:
+        print(f"# {title_heading}")
+        print()
+        if compact:
+            print("| Rank | Title | Views |")
+            print("| --- | --- | --- |")
+            for article in articles:
+                rank = article.get("rank", "")
+                title = article.get("normalizedtitle") or article.get(
+                    "title", ""
+                ).replace("_", " ")
+                views = article.get("views", 0)
+                print(f"| {rank} | {title} | {views:,} |")
+        else:
+            print("| Rank | Title | Views | Extract |")
+            print("| --- | --- | --- | --- |")
+            for article in articles:
+                rank = article.get("rank", "")
+                title = article.get("normalizedtitle") or article.get(
+                    "title", ""
+                ).replace("_", " ")
+                views = article.get("views", 0)
+                extract = (article.get("extract") or "")[:120].replace("|", "\\|")
+                print(f"| {rank} | {title} | {views:,} | {extract} |")
+        return
+
+    # Rich mode
+    table = Table(
+        title=title_heading,
+        box=box.SIMPLE,
+        show_header=True,
+        header_style="bold cyan",
+        expand=True,
+    )
+    table.add_column("#", style="dim", width=4, justify="right")
+    table.add_column("Title", style="bold", min_width=20)
+    table.add_column("Views", justify="right", min_width=10)
+    if not compact:
+        table.add_column("Extract", overflow="fold")
+
+    for article in articles:
+        rank = str(article.get("rank", ""))
+        title = article.get("normalizedtitle") or article.get("title", "").replace(
+            "_", " "
+        )
+        views = article.get("views", 0)
+        if compact:
+            table.add_row(rank, title, f"{views:,}")
+        else:
+            extract = (article.get("extract") or "")[:200]
+            table.add_row(rank, title, f"{views:,}", extract)
+
+    console.print(table)

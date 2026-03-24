@@ -1016,3 +1016,170 @@ class TestFetchFeaturedArticle:
     def test_rejects_invalid_date_formats(self, bad_date: str) -> None:
         with pytest.raises(ValueError, match="Invalid date format"):
             api.fetch_featured_article(bad_date)
+
+# ---------------------------------------------------------------------------
+# fetch_most_read
+# ---------------------------------------------------------------------------
+
+
+SAMPLE_MOST_READ_RESPONSE = {
+    "mostread": {
+        "date": "2026-03-22Z",
+        "articles": [
+            {
+                "views": 1517128,
+                "rank": 1,
+                "title": "Eiffel_Tower",
+                "normalizedtitle": "Eiffel Tower",
+                "extract": "The Eiffel Tower is a wrought-iron lattice tower.",
+                "content_urls": {
+                    "desktop": {
+                        "page": "https://en.wikipedia.org/wiki/Eiffel_Tower"
+                    }
+                },
+            },
+            {
+                "views": 987654,
+                "rank": 2,
+                "title": "Python_(programming_language)",
+                "normalizedtitle": "Python (programming language)",
+                "extract": "Python is a high-level programming language.",
+                "content_urls": {
+                    "desktop": {
+                        "page": "https://en.wikipedia.org/wiki/Python_(programming_language)"
+                    }
+                },
+            },
+        ],
+    }
+}
+
+SAMPLE_FEED_WITH_MOST_READ = {
+    "tfa": SAMPLE_FEATURED_RESPONSE["tfa"],
+    "mostread": SAMPLE_MOST_READ_RESPONSE["mostread"],
+}
+
+
+class TestFetchMostRead:
+    def test_fetches_todays_most_read(self, httpx_mock: HTTPXMock) -> None:
+        mock_date = datetime(2026, 3, 23)
+        with patch("wiki_client.api.datetime") as mock_datetime:
+            mock_datetime.now.return_value = mock_date
+            httpx_mock.add_response(
+                url="https://en.wikipedia.org/api/rest_v1/feed/featured/2026/03/23",
+                json=SAMPLE_MOST_READ_RESPONSE,
+            )
+            result = api.fetch_most_read()
+
+        assert result["date"] == "2026-03-22Z"
+        assert len(result["articles"]) == 2
+        assert result["articles"][0]["rank"] == 1
+        assert result["articles"][0]["normalizedtitle"] == "Eiffel Tower"
+        assert result["articles"][0]["views"] == 1517128
+
+    def test_fetches_most_read_for_specific_date(
+        self, httpx_mock: HTTPXMock
+    ) -> None:
+        httpx_mock.add_response(
+            url="https://en.wikipedia.org/api/rest_v1/feed/featured/2026/03/23",
+            json=SAMPLE_MOST_READ_RESPONSE,
+        )
+        result = api.fetch_most_read("2026-03-23")
+
+        assert result["date"] == "2026-03-22Z"
+        assert result["articles"][1]["normalizedtitle"] == (
+            "Python (programming language)"
+        )
+
+    def test_handles_missing_mostread_key(self, httpx_mock: HTTPXMock) -> None:
+        mock_date = datetime(2026, 3, 23)
+        with patch("wiki_client.api.datetime") as mock_datetime:
+            mock_datetime.now.return_value = mock_date
+            httpx_mock.add_response(
+                url="https://en.wikipedia.org/api/rest_v1/feed/featured/2026/03/23",
+                json={},
+            )
+            with pytest.raises(ValueError, match="No most-read articles found"):
+                api.fetch_most_read()
+
+    def test_handles_http_error(self, httpx_mock: HTTPXMock) -> None:
+        mock_date = datetime(2026, 3, 23)
+        with patch("wiki_client.api.datetime") as mock_datetime:
+            mock_datetime.now.return_value = mock_date
+            httpx_mock.add_response(
+                url="https://en.wikipedia.org/api/rest_v1/feed/featured/2026/03/23",
+                status_code=404,
+            )
+            with pytest.raises(httpx.HTTPStatusError):
+                api.fetch_most_read()
+
+    @pytest.mark.parametrize(
+        "bad_date",
+        [
+            "",
+            "   ",
+            "2026/03/23",
+            "not-a-date",
+            "2026-13-01",
+        ],
+    )
+    def test_rejects_invalid_date_formats(self, bad_date: str) -> None:
+        with pytest.raises(ValueError, match="Invalid date format"):
+            api.fetch_most_read(bad_date)
+
+
+# ---------------------------------------------------------------------------
+# filter_most_read_articles
+# ---------------------------------------------------------------------------
+
+
+_MOST_READ_ARTICLES = [
+    {
+        "rank": 1,
+        "title": "Eiffel_Tower",
+        "normalizedtitle": "Eiffel Tower",
+        "views": 1517128,
+    },
+    {
+        "rank": 2,
+        "title": "Python_(programming_language)",
+        "normalizedtitle": "Python (programming language)",
+        "views": 987654,
+    },
+    {
+        "rank": 3,
+        "title": "Ada_Lovelace",
+        "normalizedtitle": "Ada Lovelace",
+        "views": 500000,
+    },
+]
+
+
+class TestFilterMostReadArticles:
+    def test_exact_title_match(self) -> None:
+        result = api.filter_most_read_articles(_MOST_READ_ARTICLES, ("Eiffel Tower",))
+        assert result == "Eiffel Tower"
+
+    def test_case_insensitive_match(self) -> None:
+        result = api.filter_most_read_articles(_MOST_READ_ARTICLES, ("eiffel tower",))
+        assert result == "Eiffel Tower"
+
+    def test_fuzzy_substring_match(self) -> None:
+        result = api.filter_most_read_articles(_MOST_READ_ARTICLES, ("python",))
+        assert result == "Python (programming language)"
+
+    def test_falls_back_to_title_without_normalizedtitle(self) -> None:
+        articles = [{"rank": 1, "title": "Eiffel_Tower", "views": 100}]
+        result = api.filter_most_read_articles(articles, ("eiffel",))
+        assert result == "Eiffel Tower"
+
+    def test_no_match_raises_value_error(self) -> None:
+        with pytest.raises(ValueError, match="No most-read article found matching"):
+            api.filter_most_read_articles(_MOST_READ_ARTICLES, ("xyzzy_nope",))
+
+    def test_multiple_queries_first_wins(self) -> None:
+        result = api.filter_most_read_articles(
+            _MOST_READ_ARTICLES, ("lovelace", "python")
+        )
+        # Python is rank 2 and Ada Lovelace is rank 3; first match in list order wins
+        assert result == "Python (programming language)"
