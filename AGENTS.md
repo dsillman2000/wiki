@@ -320,19 +320,19 @@ Benefits:
 
 ## CLI Options
 
-| Option                  | Description                                     |
-| ----------------------- | ----------------------------------------------- |
-| `QUERY`                 | Article title, search terms, or Wikipedia URL   |
-| `-s, --section SECTION` | Extract matching sections (fuzzy, repeatable)   |
-| `-ls, --list-sections`  | List all sections in article                    |
-| `--search`              | Show search results instead of fetching         |
-| `--random`              | Fetch a random Wikipedia article                |
-| `--featured`            | Fetch today's featured Wikipedia article        |
+| Option                  | Description                                                   |
+| ----------------------- | ------------------------------------------------------------- |
+| `QUERY`                 | Article title, search terms, or Wikipedia URL                 |
+| `-s, --section SECTION` | Extract matching sections (fuzzy, repeatable)                 |
+| `-ls, --list-sections`  | List all sections in article                                  |
+| `--search`              | Show search results instead of fetching                       |
+| `--random`              | Fetch a random Wikipedia article                              |
+| `--featured`            | Fetch today's featured Wikipedia article                      |
 | `--featured-date DATE`  | Fetch featured article for specific date (implies --featured) |
-| `--raw`                 | Plain text/Markdown output (no Rich formatting) |
-| `-o, --output FILE`     | Write output to FILE                            |
-| `--version`             | Show version                                    |
-| `-h, --help`            | Show help                                       |
+| `--raw`                 | Plain text/Markdown output (no Rich formatting)               |
+| `-o, --output FILE`     | Write output to FILE                                          |
+| `--version`             | Show version                                                  |
+| `-h, --help`            | Show help                                                     |
 
 ## Exit Codes
 
