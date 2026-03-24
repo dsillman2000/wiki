@@ -20,6 +20,7 @@ A command-line tool to fetch Wikipedia articles and display them in the terminal
 - **Most-read articles** — Fetch Wikipedia's most-read articles for yesterday
 - **Daily news** — Fetch Wikipedia's "In the news" stories
 - **Raw output** — Print plain text instead of Rich-formatted output
+- **AI Agent Skills** — Ready-to-use skill files for OpenCode, Copilot, Claude, Codex, Windsurf, Aider, and Cursor
 
 ## Requirements
 
@@ -74,6 +75,70 @@ Or use the provided install script:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/dsillman2000/wiki-client/main/install.sh | sh
+```
+
+### Install AI Agent Skills
+
+The wiki CLI includes skill files for various AI agents. Install them directly from GitHub without cloning the repository:
+
+#### Remote Installation (Recommended)
+
+Use the unified installer script with the `-a` flag to specify the agent:
+
+```bash
+# Install for OpenCode
+curl -fsSL https://raw.githubusercontent.com/dsillman2000/wiki-client/main/install/skill.sh | sh -s -- -a opencode
+
+# Install for GitHub Copilot
+curl -fsSL https://raw.githubusercontent.com/dsillman2000/wiki-client/main/install/skill.sh | sh -s -- -a copilot
+
+# Install for Claude
+curl -fsSL https://raw.githubusercontent.com/dsillman2000/wiki-client/main/install/skill.sh | sh -s -- -a claude
+
+# Install for Codex
+curl -fsSL https://raw.githubusercontent.com/dsillman2000/wiki-client/main/install/skill.sh | sh -s -- -a codex
+
+# Install for Windsurf (Codeium)
+curl -fsSL https://raw.githubusercontent.com/dsillman2000/wiki-client/main/install/skill.sh | sh -s -- -a windsurf
+
+# Install for Aider
+curl -fsSL https://raw.githubusercontent.com/dsillman2000/wiki-client/main/install/skill.sh | sh -s -- -a aider
+
+# Install for Cursor
+curl -fsSL https://raw.githubusercontent.com/dsillman2000/wiki-client/main/install/skill.sh | sh -s -- -a cursor
+```
+
+#### Local Installation
+
+If you have cloned the repository, you can install locally:
+
+```bash
+# Install for OpenCode
+./install/skill.sh -a opencode
+
+# Install for GitHub Copilot
+./install/skill.sh -a copilot
+
+# Install for Claude
+./install/skill.sh -a claude
+
+# Install for Codex
+./install/skill.sh -a codex
+
+# Install for Windsurf (Codeium)
+./install/skill.sh -a windsurf
+
+# Install for Aider
+./install/skill.sh -a aider
+
+# Install for Cursor
+./install/skill.sh -a cursor
+```
+
+Show help:
+
+```bash
+./install/skill.sh -h
 ```
 
 ### Docker

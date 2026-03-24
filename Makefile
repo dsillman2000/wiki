@@ -57,7 +57,7 @@ lint-python: ## Run ruff on Python source and tests
 
 lint-shell: ## Run shellcheck on bash scripts
 	@echo "$(BLUE)Running shellcheck...$(NC)"
-	shellcheck wiki install.sh uninstall.sh lint.sh
+	shellcheck *.sh **/*.sh
 	@echo "$(GREEN)✓ Shellcheck passed$(NC)"
 
 lint-markdown: ## Check markdown formatting with prettier

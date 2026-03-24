@@ -1,3 +1,8 @@
+---
+name: wikipedia
+description: Fetch Wikipedia articles and display in terminal
+---
+
 # Wiki CLI Skill
 
 ## Tool
