@@ -316,7 +316,7 @@ def render_most_read(data: dict, *, raw: bool = False, compact: bool = False) ->
     """Render Wikipedia's most-read article list to the terminal.
 
     Args:
-        data:    Dict returned by :func:`~wiki_cli.api.fetch_most_read` with
+        data:    Dict returned by :func:`~wiki_client.api.fetch_most_read` with
                  ``date`` and ``articles`` keys.
         raw:     When *True*, emit plain-text Markdown instead of Rich markup.
         compact: When *True*, omit the extract column (title/rank/views only).
