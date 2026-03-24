@@ -746,9 +746,10 @@ def fetch_news(date: str | None = None) -> list[dict]:
     and extracts the ``news`` field.
 
     Args:
-        date: Optional date in YYYY-MM-DD format. Defaults to today.
-              Note: news is only available for the current UTC day; historical
-              dates will have an empty ``news`` field and raise a ValueError.
+        date: Optional date in YYYY-MM-DD format. Defaults to today (UTC).
+              Note: The Wikipedia news feed only contains entries for the
+              current UTC day. Historical dates will have an empty ``news``
+              field and raise a ValueError.
 
     Returns:
         List of news story dicts, each containing:
@@ -772,7 +773,10 @@ def fetch_news(date: str | None = None) -> list[dict]:
 
     raw_news = data.get("news", [])
     if not raw_news:
-        raise ValueError(f"No news available for {year}-{month}-{day}")
+        raise ValueError(
+            f"No news available for {year}-{month}-{day}. "
+            "Note: Wikipedia 'In the news' is only available for the current day."
+        )
 
     result = []
     for story in raw_news:
