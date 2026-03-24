@@ -65,6 +65,21 @@ from wiki_client import __version__, api, render
         "Implies --featured."
     ),
 )
+@click.option(
+    "--news",
+    "news_mode",
+    is_flag=True,
+    help="Fetch today's Wikipedia 'In the news' stories.",
+)
+@click.option(
+    "--news-date",
+    metavar="DATE",
+    default=None,
+    help=(
+        "Fetch news stories for specific date (YYYY-MM-DD format). "
+        "Implies --news."
+    ),
+)
 @click.version_option(version=__version__, prog_name="wiki")
 def cli(
     query: tuple[str, ...],
@@ -76,6 +91,8 @@ def cli(
     random: bool,
     featured: bool,
     featured_date: str | None,
+    news_mode: bool,
+    news_date: str | None,
 ) -> None:
     """Fetch a Wikipedia article and display it in the terminal.
 
@@ -103,10 +120,19 @@ def cli(
       wiki --featured --featured-date 2025-03-23
       wiki --featured-date 2025-03-23
       wiki --featured-date 2025-03-23 -s "Early life"
+      wiki --news
+      wiki --news --raw
+      wiki --news -o news.md
+      wiki --news --ls
+      wiki --news-date 2026-03-23
     """
     # If featured_date is specified, automatically enable featured mode
     if featured_date:
         featured = True
+
+    # If news_date is specified, automatically enable news mode
+    if news_date:
+        news_mode = True
 
     # Validate incompatible flag combinations
     if random and section_filter:
@@ -118,11 +144,22 @@ def cli(
     if featured and query:
         raise click.UsageError("QUERY cannot be provided with --featured")
 
+    if news_mode and query:
+        raise click.UsageError("QUERY cannot be provided with --news")
+
     if random and featured:
         raise click.UsageError("--random and --featured are mutually exclusive")
 
-    if not random and not featured and not query:
-        raise click.UsageError("QUERY is required (or use --random or --featured).")
+    if random and news_mode:
+        raise click.UsageError("--random and --news are mutually exclusive")
+
+    if featured and news_mode:
+        raise click.UsageError("--featured and --news are mutually exclusive")
+
+    if not random and not featured and not news_mode and not query:
+        raise click.UsageError(
+            "QUERY is required (or use --random, --featured, or --news)."
+        )
 
     query_str = " ".join(query)
 
@@ -155,6 +192,12 @@ def cli(
                     render.render_sections(matched, raw=raw, page_url=page_url)
                 else:
                     render.render_article(data, raw=raw)
+            elif news_mode:
+                news = api.fetch_news(news_date)
+                if list_sections:
+                    render.render_news_list(news)
+                else:
+                    render.render_news(news, raw=raw)
             elif search_mode:
                 results = api.search(query_str)
                 render.render_search_results(results, query=query_str)
@@ -184,6 +227,10 @@ def cli(
                 raise click.ClickException(
                     f"HTTP error {exc.response.status_code} fetching featured article"
                 ) from exc
+            elif news_mode:
+                raise click.ClickException(
+                    f"HTTP error {exc.response.status_code} fetching news"
+                ) from exc
             else:
                 raise click.ClickException(
                     f"HTTP error {exc.response.status_code} fetching article: "
@@ -197,6 +244,10 @@ def cli(
             elif featured:
                 raise click.ClickException(
                     f"Network error fetching featured article: {exc}"
+                ) from exc
+            elif news_mode:
+                raise click.ClickException(
+                    f"Network error fetching news: {exc}"
                 ) from exc
             else:
                 raise click.ClickException(

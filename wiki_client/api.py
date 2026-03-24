@@ -714,6 +714,67 @@ def fetch_random_article() -> dict:
     return {**summary, "sections": section_tree}
 
 
+def fetch_news(date: str | None = None) -> list[dict]:
+    """Fetch Wikipedia's 'In the news' stories for a given date.
+
+    Uses the same Wikipedia feed API endpoint as :func:`fetch_featured_article`
+    and extracts the ``news`` field.
+
+    Args:
+        date: Optional date in YYYY-MM-DD format. Defaults to today.
+              Note: news is only available for the current UTC day; historical
+              dates will have an empty ``news`` field and raise a ValueError.
+
+    Returns:
+        List of news story dicts, each containing:
+            - ``story``: plain-text story summary (HTML stripped)
+            - ``links``: list of related article dicts (title, extract, etc.)
+
+    Raises:
+        ValueError: If the date format is invalid or no news is available.
+        httpx.HTTPStatusError: On HTTP errors.
+        httpx.RequestError: On network failures.
+    """
+    if date is not None:
+        stripped = date.strip()
+        if not stripped:
+            raise ValueError("Invalid date format: empty string. Use YYYY-MM-DD.")
+        try:
+            parsed_date = datetime.strptime(stripped, "%Y-%m-%d").date()
+        except ValueError:
+            raise ValueError(f"Invalid date format: {date}. Use YYYY-MM-DD.") from None
+    else:
+        parsed_date = datetime.now().date()
+
+    year = parsed_date.strftime("%Y")
+    month = parsed_date.strftime("%m")
+    day = parsed_date.strftime("%d")
+
+    url = f"https://en.wikipedia.org/api/rest_v1/feed/featured/{year}/{month}/{day}"
+
+    with httpx.Client(
+        headers={"User-Agent": USER_AGENT}, follow_redirects=True
+    ) as client:
+        response = client.get(url)
+        response.raise_for_status()
+        data = response.json()
+
+    raw_news = data.get("news", [])
+    if not raw_news:
+        raise ValueError(
+            f"No news available for {parsed_date.strftime('%Y-%m-%d')}"
+        )
+
+    result = []
+    for story in raw_news:
+        story_html = story.get("story", "")
+        story_text = _strip_html(story_html)
+        links = story.get("links", [])
+        result.append({"story": story_text, "links": links})
+
+    return result
+
+
 def fetch_featured_article(date: str | None = None) -> dict:
     """Fetch Wikipedia's featured article for a given date.
 
