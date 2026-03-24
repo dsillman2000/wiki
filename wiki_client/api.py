@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import re
-from datetime import datetime
+from datetime import datetime, timezone
 from urllib.parse import unquote, urlparse
 
 import httpx
@@ -718,7 +718,7 @@ def _parse_date(date: str | None) -> tuple[str, str, str]:
     """Validate and parse an optional YYYY-MM-DD date string.
 
     Args:
-        date: Date string in YYYY-MM-DD format, or None for today.
+        date: Date string in YYYY-MM-DD format, or None for today (UTC).
 
     Returns:
         Tuple of (year, month, day) strings (zero-padded).
@@ -735,7 +735,7 @@ def _parse_date(date: str | None) -> tuple[str, str, str]:
         except ValueError:
             raise ValueError(f"Invalid date format: {date}. Use YYYY-MM-DD.") from None
     else:
-        parsed = datetime.now().date()
+        parsed = datetime.now(timezone.utc).date()
     return parsed.strftime("%Y"), parsed.strftime("%m"), parsed.strftime("%d")
 
 
